@@ -57,3 +57,24 @@ def get_history(user_id: int, limit: int = 5) -> list:
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def count_user_invoices(user_id: int) -> int:
+    """Đếm tổng số hóa đơn của một user."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM invoices WHERE user_id = ?", (user_id,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+def is_duplicate(user_id: int, store_name: str, date: str, total_amount: float) -> bool:
+    """Kiểm tra xem hóa đơn đã tồn tại chưa (dựa trên store_name, date, total_amount)."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id FROM invoices 
+        WHERE user_id = ? AND store_name = ? AND date = ? AND total_amount = ?
+    """, (user_id, store_name, date, total_amount))
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None

@@ -1,6 +1,18 @@
+
+# Chặn môi trường ảo (QUAN TRỌNG)
+.venv/
+venv/
+env/
+
+# Chặn file cấu hình cá nhân
 .env
+
+# Chặn database và file tạm
 *.db
 __pycache__/
+scratch/
+
+# Chặn các file hệ thống khác
 *.pyc
 *.pyo
 .DS_Store

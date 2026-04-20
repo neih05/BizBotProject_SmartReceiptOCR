@@ -2,18 +2,20 @@ import os
 import logging
 from dotenv import load_dotenv
 
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
     ContextTypes,
 )
 
-from database import init_db, save_invoice, get_history
+from database import init_db, save_invoice, get_history, count_user_invoices, is_duplicate
 from gemini_handler import setup_gemini, extract_invoice
 from formatter import format_invoice, format_history
+from datetime import datetime
 
 # ── Load biến môi trường ──────────────────────────────────────────────────────
 load_dotenv()
@@ -90,16 +92,33 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data = extract_invoice(bytes(image_bytes))
         logger.info(f"[User {user_id}] Gemini trả về: {data}")
 
-        # 3. Lưu vào database
-        invoice_id = save_invoice(user_id, data)
-        logger.info(f"[User {user_id}] Đã lưu invoice #{invoice_id}")
+        if data.get("is_invoice") is False:
+            await processing_msg.edit_text("⚠️ Đây không phải hóa đơn, vui lòng gửi lại ảnh khác.")
+            return
 
-        # 4. Format kết quả đẹp và reply
+        store_name = data.get("store_name", "Không rõ")
+        date_str = data.get("date", "Không rõ")
+        total_amount = data.get("total_amount", 0)
+
+        is_dup = is_duplicate(user_id, store_name, date_str, total_amount)
+
+        # 3. Format kết quả đẹp và gửi kèm nút xác nhận
         result_text = format_invoice(data)
-        result_text += f"\n\n✅ *Đã lưu* — Mã hóa đơn: #{invoice_id}"
+        if is_dup:
+            result_text += "\n\n⚠️ Cảnh báo: Hóa đơn này có dấu hiệu trùng lặp với dữ liệu đã có!"
+
+        context.user_data['temp_invoice'] = data
+
+        keyboard = [
+            [
+                InlineKeyboardButton("Xác nhận ✅", callback_data="confirm_invoice"),
+                InlineKeyboardButton("Sửa thủ công ✏️", callback_data="edit_invoice")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
         await processing_msg.delete()
-        await update.message.reply_text(result_text, parse_mode="Markdown")
+        await update.message.reply_text(result_text, parse_mode="Markdown", reply_markup=reply_markup)
 
     except ValueError as e:
         # Gemini trả về JSON không hợp lệ
@@ -125,6 +144,76 @@ async def handle_non_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
     )
 
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+
+    if query.data == "confirm_invoice":
+        data = context.user_data.get('temp_invoice')
+        if not data:
+            await query.edit_message_text("❌ Không tìm thấy dữ liệu hóa đơn tạm thời. Vui lòng gửi lại ảnh.")
+            return
+
+        invoice_id = save_invoice(user_id, data)
+        count = count_user_invoices(user_id)
+
+        result_text = format_invoice(data)
+        result_text += f"\n\n✅ *Đã lưu* — Mã hóa đơn: #{invoice_id} (Hóa đơn thứ {count} của bạn)"
+
+        await query.edit_message_text(result_text, parse_mode="Markdown")
+        context.user_data.pop('temp_invoice', None)
+
+    elif query.data == "edit_invoice":
+        await query.edit_message_text(
+            query.message.text + "\n\n" +
+            "Nếu AI đọc sai, bạn hãy dùng lệnh:\n"
+            "`/chi [Số tiền] [Tên_cửa_hàng]`\n"
+            "Ví dụ: `/chi 150000 Highland Coffee`\n"
+            "để nhập thủ công nhé!",
+            parse_mode="Markdown"
+        )
+        context.user_data.pop('temp_invoice', None)
+
+async def cmd_chi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lệnh /chi [Số tiền] [Tên_cửa_hàng]"""
+    user_id = update.effective_user.id
+    args = context.args
+
+    if len(args) < 2:
+        await update.message.reply_text("Vui lòng dùng đúng cú pháp:\n`/chi [Số tiền] [Tên_cửa_hàng]`\nVí dụ: `/chi 150000 Highland Coffee`", parse_mode="Markdown")
+        return
+
+    try:
+        amount_str = args[0].replace(',', '').replace('.', '')
+        amount = float(amount_str)
+    except ValueError:
+        await update.message.reply_text("Số tiền không hợp lệ.")
+        return
+
+    store_name = " ".join(args[1:])
+    today_str = datetime.now().strftime("%d/%m/%Y")
+
+    data = {
+        "is_invoice": True,
+        "store_name": store_name,
+        "date": today_str,
+        "items": [],
+        "total_amount": amount
+    }
+
+    invoice_id = save_invoice(user_id, data)
+    count = count_user_invoices(user_id)
+
+    await update.message.reply_text(
+        f"✅ *Đã lưu hóa đơn thủ công*\n"
+        f"Mã hóa đơn: #{invoice_id} (Hóa đơn thứ {count} của bạn)\n"
+        f"Cửa hàng: {store_name}\n"
+        f"Số tiền: {amount:,.0f}đ",
+        parse_mode="Markdown"
+    )
+
 
 # ── Khởi chạy bot ─────────────────────────────────────────────────────────────
 
@@ -137,8 +226,10 @@ def main():
     app.add_handler(CommandHandler("start",   cmd_start))
     app.add_handler(CommandHandler("help",    cmd_help))
     app.add_handler(CommandHandler("history", cmd_history))
+    app.add_handler(CommandHandler("chi",     cmd_chi))
     app.add_handler(MessageHandler(filters.PHOTO,                   handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_non_photo))
+    app.add_handler(CallbackQueryHandler(handle_callback))
 
     logger.info("BizBot đang chạy... Bấm Ctrl+C để dừng.")
     app.run_polling()
