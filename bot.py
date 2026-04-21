@@ -17,11 +17,12 @@ from telegram.ext import (
 from database import (
     init_db, save_invoice, get_history, count_user_invoices, is_duplicate,
     get_user, save_user, update_user_status, get_pending_invoices,
-    update_invoice_status, get_approved_invoices_for_report
+    update_invoice_status, get_approved_invoices_for_report, get_users_with_stats
 )
 from gemini_handler import setup_gemini, extract_invoice
 from formatter import format_invoice, format_history
 from datetime import datetime
+from telegram import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 
 # ── Load biến môi trường ──────────────────────────────────────────────────────
 load_dotenv()
@@ -72,7 +73,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👋 Xin chào {user['full_name']}! Bạn đã được cấp quyền.\n\n"
             "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
             "📋 Dùng /history để xem 5 hóa đơn gần nhất.\n"
-            "✏️ Dùng /chi [số tiền] [Tên] để nhập tay.",
+            "✏️ Dùng /expense [số tiền] [Tên] để nhập tay.",
             parse_mode="Markdown"
         )
         return ConversationHandler.END
@@ -100,9 +101,21 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
     user_id = update.effective_user.id
     
-    # Lưuser_id vào db với trạng thái is_verified = False
-    save_user(user_id, name, "DEFAULT_COMPANY", "staff", False)
+    # Kiểm tra xem có phải Admin không
+    is_admin = (user_id == ADMIN_ID)
+    role = "admin" if is_admin else "staff"
+    is_verified = True if is_admin else False
     
+    save_user(user_id, name, "DEFAULT_COMPANY", role, is_verified)
+    
+    if is_admin:
+        await update.message.reply_text(
+            f"👋 Chào {name}! Hệ thống đã nhận diện bạn là Admin và kích hoạt toàn bộ quyền quản trị.\n\n"
+            "Dùng /help để xem các lệnh dành cho Admin.",
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END
+
     await update.message.reply_text(
         f"Cảm ơn {name}. Yêu cầu cấp quyền của bạn đã được gửi cho Kế toán (Admin). Bạn sẽ nhận được thông báo khi được duyệt!"
     )
@@ -169,7 +182,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await processing_msg.edit_text("❌ Đã xảy ra lỗi hệ thống.")
 
 
-async def cmd_chi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_user_verified(update):
         return
         
@@ -177,7 +190,11 @@ async def cmd_chi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
 
     if len(args) < 2:
-        await update.message.reply_text("Cú pháp: `/chi [Số tiền] [Tên_cửa_hàng]`", parse_mode="Markdown")
+        await update.message.reply_text(
+            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`", 
+            parse_mode="Markdown"
+        )
         return
 
     try:
@@ -216,15 +233,45 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "*Hướng dẫn sử dụng BizBot:*\n\n"
-        "1️⃣ Dùng /start để đăng nhập\n"
-        "2️⃣ Chụp ảnh hóa đơn gửi vào bot\n"
-        "3️⃣ Hóa đơn đưa vào hàng đợi chờ Kế toán duyệt\n\n"
-        "/chi [số tiền] [tên cửa hàng] — Nhập tay thủ công\n"
-        "/history — Xem 5 hóa đơn gần nhất\n",
-        parse_mode="Markdown"
-    )
+    user_id = update.effective_user.id
+    user = get_user(user_id)
+    
+    if not user:
+        # Người lạ (chưa đăng ký)
+        text = (
+            "👋 *Chào mừng bạn đến với BizBot!*\n\n"
+            "Hiện tại bạn chưa được cấp quyền sử dụng hệ thống.\n"
+            "👉 Vui lòng gõ /start và nhập *Mã Bảo Mật* để đăng ký tham gia."
+        )
+    elif not user["is_verified"]:
+        # Đã đăng ký nhưng chưa duyệt
+        text = (
+            "⏳ *Tài khoản đang chờ duyệt*\n\n"
+            "Bạn đã gửi yêu cầu tham gia. Vui lòng chờ Admin (Kế toán) xác nhận.\n"
+            "Chỉ sau khi được duyệt, bạn mới có thể sử dụng các chức năng của bot."
+        )
+    elif user["role"] == "admin":
+        # Menu cho Admin
+        text = (
+            "🦸‍♂️ *MENU QUẢN TRỊ VIÊN (ADMIN)*\n\n"
+            "📂 /pending: Xem và duyệt các hóa đơn đang chờ.\n"
+            "📊 /report: Xuất báo cáo tổng hợp chi phí (file CSV).\n"
+            "👥 /users: Xem danh sách nhân viên & thống kê hóa đơn.\n"
+            "📜 /history: Xem lịch sử chi tiêu cá nhân.\n"
+            "🖊️ /expense: Nhập chi tiêu cá nhân.\n"
+            "❓ /help: Hiển thị bảng trợ giúp này."
+        )
+    else:
+        # Menu cho Staff (đã verified)
+        text = (
+            "👨‍💻 *MENU NHÂN VIÊN*\n\n"
+            "📸 *Gửi ảnh:* Gửi trực tiếp ảnh hóa đơn để trích xuất và lưu nháp.\n"
+            "🖊️ /expense [số tiền] [nội dung]: Nhập hóa đơn thủ công khi không có ảnh.\n"
+            "📜 /history: Xem lại 5 hóa đơn gần nhất bạn đã gửi.\n"
+            "❓ /help: Hiển thị bảng trợ giúp này."
+        )
+
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 
 # ── Nghiệp vụ Admin ──────────────────────────────────────────────────────────
@@ -246,7 +293,8 @@ async def cmd_pending(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_info = get_user(inv["user_id"])
         user_name = user_info["full_name"] if user_info else f"ID: {inv['user_id']}"
         
-        is_dup = is_duplicate(inv["user_id"], inv["store_name"], inv["date"], inv["total_amount"])
+        # Kiểm tra trùng lặp nhưng trừ chính nó ra
+        is_dup = is_duplicate(inv["user_id"], inv["store_name"], inv["date"], inv["total_amount"], exclude_id=inv["id"])
         
         text = (
             f"🧾 *Mã Hóa Đơn:* #{inv['id']}\n"
@@ -282,8 +330,11 @@ async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Không có hóa đơn nào đã duyệt để xuất báo cáo.")
         return
 
-    filepath = "bao_cao_chi_phi.csv"
-    with open(filepath, mode="w", encoding="utf-8", newline="") as f:
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"bao_cao_chi_phi_{timestamp}.csv"
+    filepath = filename
+
+    with open(filepath, mode="w", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["Telegram ID", "Họ Tên", "Số Lượng Hóa Đơn", "Tổng Chi Phí (VND)"])
         for row in approved_list:
@@ -292,10 +343,34 @@ async def cmd_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_document(
         chat_id=ADMIN_ID,
         document=open(filepath, "rb"),
-        filename="bao_cao_chi_phi.csv",
-        caption="📊 Báo cáo tổng hợp chi phí đã duyệt."
+        filename=filename,
+        caption=f"📊 Báo cáo tổng hợp chi phí đã duyệt (Xuất lúc {datetime.now().strftime('%H:%M:%S %d/%m/%Y')})."
     )
     os.remove(filepath)
+
+async def cmd_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lệnh /users dành cho Admin: Xem danh sách user và stats."""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("⛔ Bạn không có quyền sử dụng lệnh này.")
+        return
+
+    users = get_users_with_stats()
+    if not users:
+        await update.message.reply_text("Chưa có người dùng nào trong hệ thống.")
+        return
+
+    text = "👥 *DANH SÁCH NHÂN VIÊN*\n\n"
+    for u in users:
+        status_icon = "✅" if u["is_verified"] else "⏳"
+        role_label = "Admin" if u["role"] == "admin" else "Staff"
+        text += (
+            f"{status_icon} *{u['full_name']}* ({role_label})\n"
+            f"   └ ID: `{u['telegram_id']}`\n"
+            f"   └ Hóa đơn: {u['invoice_count']}\n\n"
+        )
+    
+    await update.message.reply_text(text, parse_mode="Markdown")
 
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -358,7 +433,34 @@ def main():
     init_db()
     logger.info("Database đã sẵn sàng.")
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    async def post_init(application):
+        """Thiết lập menu lệnh riêng biệt cho Admin và Nhân viên."""
+        # Menu chung cho Nhân viên
+        staff_commands = [
+            BotCommand("help",    "Hiển thị bảng hướng dẫn"),
+            BotCommand("history", "Xem lịch sử cá nhân"),
+            BotCommand("expense", "Nhập hóa đơn thủ công"),
+        ]
+        await application.bot.set_my_commands(staff_commands, scope=BotCommandScopeDefault())
+
+        # Menu riêng cho Admin
+        admin_commands = [
+            BotCommand("help",    "Bảng điều khiển Admin"),
+            BotCommand("pending", "Duyệt hóa đơn chờ"),
+            BotCommand("report",  "Xuất báo cáo CSV"),
+            BotCommand("users",   "Quản lý nhân viên"),
+            BotCommand("history", "Lịch sử chi cá nhân"),
+            BotCommand("expense", "Nhập chi cá nhân"),
+        ]
+        try:
+            await application.bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=ADMIN_ID))
+            logger.info(f"Đã thiết lập menu riêng cho Admin ({ADMIN_ID})")
+        except Exception as e:
+            logger.warning(f"Không thể thiết lập menu Admin: {e}")
+
+        logger.info("Hệ thống menu đã được phân quyền.")
+
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
@@ -372,9 +474,10 @@ def main():
     app.add_handler(conv_handler)
     app.add_handler(CommandHandler("help",    cmd_help))
     app.add_handler(CommandHandler("history", cmd_history))
-    app.add_handler(CommandHandler("chi",     cmd_chi))
+    app.add_handler(CommandHandler("expense", cmd_expense))
     app.add_handler(CommandHandler("pending", cmd_pending))
     app.add_handler(CommandHandler("report",  cmd_report))
+    app.add_handler(CommandHandler("users",   cmd_users))
     
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_non_photo))

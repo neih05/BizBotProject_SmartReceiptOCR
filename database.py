@@ -83,14 +83,22 @@ def count_user_invoices(user_id: int) -> int:
     conn.close()
     return count
 
-def is_duplicate(user_id: int, store_name: str, date: str, total_amount: float) -> bool:
+def is_duplicate(user_id: int, store_name: str, date: str, total_amount: float, exclude_id: int = None) -> bool:
     """Kiểm tra xem hóa đơn đã tồn tại chưa (dựa trên store_name, date, total_amount)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("""
+    
+    query = """
         SELECT id FROM invoices 
         WHERE user_id = ? AND store_name = ? AND date = ? AND total_amount = ? AND status != 'rejected'
-    """, (user_id, store_name, date, total_amount))
+    """
+    params = [user_id, store_name, date, total_amount]
+    
+    if exclude_id is not None:
+        query += " AND id != ?"
+        params.append(exclude_id)
+        
+    cursor.execute(query, params)
     row = cursor.fetchone()
     conn.close()
     return row is not None
@@ -152,6 +160,22 @@ def get_approved_invoices_for_report() -> list:
         LEFT JOIN users u ON i.user_id = u.telegram_id
         WHERE i.status = 'approved'
         GROUP BY i.user_id, u.full_name
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+def get_users_with_stats() -> list:
+    """Lấy danh sách nhân viên (staff) kèm số lượng hóa đơn họ đã gửi."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT u.telegram_id, u.full_name, u.role, u.is_verified,
+               COUNT(i.id) as invoice_count
+        FROM users u
+        LEFT JOIN invoices i ON u.telegram_id = i.user_id
+        GROUP BY u.telegram_id, u.full_name, u.role, u.is_verified
     """)
     rows = cursor.fetchall()
     conn.close()
