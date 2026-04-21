@@ -1,0 +1,24 @@
+﻿ID,Người Gửi,Số Tiền,Danh Mục,Ngày Tháng,Cửa Hàng,Trạng Thái
+23,Đinh Thị Hải,1500000.0,Sức khỏe,24/02/2024,Phòng khám Răng,approved
+22,Đinh Thị Hải,1500000.0,Sức khỏe,24/02/2024,Phòng khám Răng,approved
+21,Đinh Thị Hải,10000.0,Đi lại,14/03/2026,CTY TNHH MTV VẬN TẢI Ô TÔ VĨNH PHÚC,approved
+20,Đinh Thị Hải,55000.0,Khác,15/08/2025,Cinemax Vĩnh Phúc,approved
+19,Nguyễn Minh Nguyệt,10.0,Đóng góp/Khác,22/04/2026,e,approved
+18,Nguyễn Minh Nguyệt,10.0,Đóng góp/Khác,21/04/2026,e,approved
+17,Đinh Thị Hải,65900.0,Mua sắm vật tư,17/03/2026,WinMart+,approved
+16,Đinh Thị Hải,66000.0,Mua sắm vật tư,17/03/2026,WinMart+,rejected
+15,Đinh Thị Hải,66000.0,Mua sắm vật tư,17/03/2026,WinMart+,rejected
+14,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,Kem,rejected
+13,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,Kem,approved
+12,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,Kem,approved
+11,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,Kem,approved
+10,Đinh Thị Hải,9200.0,Đóng góp/Khác,17/03/2026,WinMart - WM+ HNI 3 ĐH Hà Nội,approved
+9,Đinh Thị Hải,9200.0,Đóng góp/Khác,17/03/2026,WinMart - 2119 - WM+ HNI 3 ĐH Hà Nội,rejected
+8,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,VND Mixue,approved
+7,Đinh Thị Hải,10000.0,Đóng góp/Khác,21/04/2026,WinMart,rejected
+6,Đinh Thị Hải,10000.0,Đóng góp/Khác,17/03/2026,WinMart,rejected
+5,Đinh Thị Hải,55000.0,Đóng góp/Khác,15/08/2025,Cinemax Vĩnh Phúc,rejected
+4,Đinh Thị Hải,55000.0,Đóng góp/Khác,15/08/2025,Cinemax Vĩnh Phúc,rejected
+3,Đinh Thị Hải,50000.0,Đóng góp/Khác,21/04/2026,Cơm trưa,approved
+2,Đinh Thị Hải,162000.0,Đóng góp/Khác,26/02/2026,LE THI DIEM QUYNH,approved
+1,Đinh Thị Hải,10000.0,Đóng góp/Khác,14/03/2026,CTY TNHH MTV VẬN TẢI Ô TÔ VĨNH PHÚC,rejected

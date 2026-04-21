@@ -12,6 +12,7 @@ Cấu trúc JSON cần trả về:
   "is_invoice": true/false (chỉ trả về true nếu ảnh thực sự là hóa đơn/biên lai, false nếu là ảnh người, động vật, phong cảnh, v.v.),
   "store_name": "tên cửa hàng hoặc null nếu không rõ",
   "date": "ngày tháng năm dạng DD/MM/YYYY hoặc null nếu không rõ",
+  "category": "danh mục chi tiêu (chỉ trả về 1 trong các tùy chọn: 'Ăn uống', 'Đi lại', 'Tiếp khách', 'Mua sắm vật tư', 'Khác' hoặc null nếu không thể phân loại)",
   "items": [
     {
       "name": "tên sản phẩm",

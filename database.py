@@ -83,16 +83,16 @@ def count_user_invoices(user_id: int) -> int:
     conn.close()
     return count
 
-def is_duplicate(user_id: int, store_name: str, date: str, total_amount: float, exclude_id: int = None) -> bool:
+def is_duplicate(store_name: str, date: str, total_amount: float, exclude_id: int = None) -> bool:
     """Kiểm tra xem hóa đơn đã tồn tại chưa (dựa trên store_name, date, total_amount)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     query = """
         SELECT id FROM invoices 
-        WHERE user_id = ? AND store_name = ? AND date = ? AND total_amount = ? AND status != 'rejected'
+        WHERE store_name = ? AND date = ? AND total_amount = ? AND status != 'rejected'
     """
-    params = [user_id, store_name, date, total_amount]
+    params = [store_name, date, total_amount]
     
     if exclude_id is not None:
         query += " AND id != ?"
@@ -180,4 +180,68 @@ def get_users_with_stats() -> list:
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def get_all_invoices_for_export() -> list:
+    """Truy vấn tất cả hóa đơn để xuất file Excel/CSV."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 
+            i.id,
+            u.full_name as sender_name,
+            i.total_amount,
+            i.raw_json,
+            i.date,
+            i.store_name,
+            i.status
+        FROM invoices i
+        LEFT JOIN users u ON i.user_id = u.telegram_id
+        ORDER BY i.id DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    result = []
+    for row in rows:
+        r = dict(row)
+        try:
+            raw_data = json.loads(r.get('raw_json') or '{}')
+            r['category'] = raw_data.get('category', 'Đóng góp/Khác')
+        except:
+            r['category'] = 'Không rõ'
+        result.append(r)
+        
+    return result
+
+def get_daily_report(date_str: str) -> dict:
+    """Lấy báo cáo tổng chi tiêu trong ngày và hóa đơn đắt nhất."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT SUM(total_amount) as total, COUNT(id) as count
+        FROM invoices 
+        WHERE date = ? AND status = 'approved'
+    """, (date_str,))
+    summary = cursor.fetchone()
+    
+    cursor.execute("""
+        SELECT store_name, total_amount, raw_json
+        FROM invoices
+        WHERE date = ? AND status = 'approved'
+        ORDER BY total_amount DESC
+        LIMIT 1
+    """, (date_str,))
+    top_invoice = cursor.fetchone()
+    
+    conn.close()
+    
+    return {
+        "total": summary["total"] if summary and summary["total"] else 0,
+        "count": summary["count"] if summary and summary["count"] else 0,
+        "top_invoice": dict(top_invoice) if top_invoice else None
+    }
+
 
