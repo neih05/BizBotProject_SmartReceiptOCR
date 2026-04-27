@@ -30,6 +30,25 @@ def init_db():
             is_verified  BOOLEAN DEFAULT 0
         )
     """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id TEXT UNIQUE NOT NULL,
+            real_name TEXT NOT NULL,
+            nickname TEXT NOT NULL
+        )
+    """)
+    
+    # Seed data
+    employees_data = [
+        ("6200223111", "Nguyễn Minh Nguyệt", "Nguyệt"),
+        ("8100040764", "Đào Thanh Hiền", "Hoa Hồng nhỏ"),
+        ("8747576383", "Đinh Thị Hải", "Hải")
+    ]
+    for emp_id, name, nick in employees_data:
+        cursor.execute("INSERT OR IGNORE INTO employees (employee_id, real_name, nickname) VALUES (?, ?, ?)", (emp_id, name, nick))
+        
     try:
         cursor.execute("ALTER TABLE invoices ADD COLUMN status TEXT DEFAULT 'pending'")
     except sqlite3.OperationalError:
@@ -108,6 +127,15 @@ def get_user(telegram_id: int) -> dict:
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def get_employee_by_nickname(nickname: str) -> dict:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM employees WHERE nickname = ? OR real_name = ?", (nickname, nickname))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None

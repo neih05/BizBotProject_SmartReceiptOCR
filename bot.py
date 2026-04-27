@@ -19,7 +19,7 @@ from database import (
     init_db, save_invoice, get_history, count_user_invoices, is_duplicate,
     get_user, save_user, update_user_status, get_pending_invoices,
     update_invoice_status, get_approved_invoices_for_report, get_users_with_stats,
-    get_all_invoices_for_export, get_daily_report
+    get_all_invoices_for_export, get_daily_report, get_employee_by_nickname
 )
 from gemini_handler import setup_gemini, extract_invoice
 from formatter import format_invoice, format_history
@@ -105,23 +105,30 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.message.text.strip()
     user_id = update.effective_user.id
     
+    # Ánh xạ nickname -> real_name
+    emp_info = get_employee_by_nickname(name)
+    if emp_info:
+        real_name = emp_info['real_name']
+    else:
+        real_name = name
+    
     # Kiểm tra xem có phải Admin không
     is_admin = (user_id == ADMIN_ID)
     role = "admin" if is_admin else "staff"
     is_verified = True if is_admin else False
     
-    save_user(user_id, name, "DEFAULT_COMPANY", role, is_verified)
+    save_user(user_id, real_name, "DEFAULT_COMPANY", role, is_verified)
     
     if is_admin:
         await update.message.reply_text(
-            f"👋 Chào {name}! Hệ thống đã nhận diện bạn là Admin và kích hoạt toàn bộ quyền quản trị.\n\n"
+            f"👋 Chào {real_name}! Hệ thống đã nhận diện bạn là Admin và kích hoạt toàn bộ quyền quản trị.\n\n"
             "Dùng /help để xem các lệnh dành cho Admin.",
             parse_mode="Markdown"
         )
         return ConversationHandler.END
 
     await update.message.reply_text(
-        f"Cảm ơn {name}. Yêu cầu cấp quyền của bạn đã được gửi cho Kế toán (Admin). Bạn sẽ nhận được thông báo khi được duyệt!"
+        f"Cảm ơn {real_name}. Yêu cầu cấp quyền của bạn đã được gửi cho Kế toán (Admin). Bạn sẽ nhận được thông báo khi được duyệt!"
     )
     
     # Gửi thông báo cho Admin
@@ -135,7 +142,7 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             chat_id=ADMIN_ID,
-            text=f"🔔 *Yêu cầu cấp quyền mới*\n\nNhân viên: {name}\nTelegram ID: {user_id}",
+            text=f"🔔 *Yêu cầu cấp quyền mới*\n\nNhân viên: {real_name}\nTelegram ID: {user_id}",
             parse_mode="Markdown",
             reply_markup=reply_markup
         )
