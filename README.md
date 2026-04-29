@@ -1,6 +1,6 @@
-# 🧾 BizBot — Bot Telegram trích xuất hóa đơn
+# 🧾 BizBot — Hệ Thống Quản Lý & Trích Xuất Hóa Đơn Thông Minh
 
-Bot tự động đọc ảnh hóa đơn, trích xuất thông tin bằng Gemini AI và lưu vào database.
+Hệ thống bao gồm một Bot Telegram tự động đọc ảnh hóa đơn, trích xuất thông tin bằng Gemini AI, một Backend API và một Web Dashboard dành cho kế toán quản lý và duyệt hóa đơn.
 
 ---
 
@@ -8,11 +8,13 @@ Bot tự động đọc ảnh hóa đơn, trích xuất thông tin bằng Gemini
 
 ```
 bizbot/
-├── bot.py              # File chính, chạy bot
-├── gemini_handler.py   # Gọi Gemini Vision API
-├── database.py         # SQLite — lưu & truy vấn hóa đơn
-├── formatter.py        # Format kết quả đẹp để reply
-├── requirements.txt    # Thư viện cần cài
+├── bot.py              # File chính, chạy bot Telegram
+├── gemini_handler.py   # Gọi Gemini Vision API để phân tích ảnh hóa đơn
+├── database.py         # Quản lý SQLite — lưu & truy vấn hóa đơn, người dùng
+├── formatter.py        # Format kết quả đẹp để reply trên Telegram
+├── api.py              # FastAPI Backend cung cấp API cho Dashboard
+├── dashboard/          # React Vite Web Dashboard cho Kế toán
+├── requirements.txt    # Thư viện Python cần cài
 ├── .env                # Token & API key (KHÔNG commit lên GitHub)
 └── .env.example        # Mẫu file .env
 ```
@@ -21,75 +23,71 @@ bizbot/
 
 ## ⚙️ Hướng dẫn cài đặt & chạy
 
-### Bước 1 — Lấy Token Telegram
+### Bước 1 — Lấy API Keys
+1. **Telegram Bot Token**: Vào Telegram, tìm **@BotFather**, tạo `/newbot` và lấy token.
+2. **Gemini API Key**: Vào [Google AI Studio](https://aistudio.google.com), tạo API Key.
 
-1. Mở Telegram, tìm **@BotFather**
-2. Gõ `/newbot` → đặt tên → lấy token dạng `123456:AAFxxx...`
-
-### Bước 2 — Lấy Gemini API Key
-
-1. Vào [https://aistudio.google.com](https://aistudio.google.com)
-2. Đăng nhập Google → bấm **Get API Key** → **Create API key**
-3. Copy key dạng `AIzaSyxxx...`
-
-### Bước 3 — Tạo file .env
-
-Tạo file `.env` trong thư mục project (copy từ `.env.example`):
-
-```
+### Bước 2 — Cấu hình biến môi trường
+Tạo file `.env` ở thư mục gốc (copy từ `.env.example`):
+```env
 TELEGRAM_TOKEN=your_telegram_token_here
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### Bước 4 — Cài thư viện
+### Bước 3 — Cài đặt và chạy hệ thống
 
+Hệ thống gồm 3 thành phần chạy song song:
+
+#### 1. Chạy Telegram Bot (Xử lý hóa đơn)
 ```bash
 pip install -r requirements.txt
-```
-
-### Bước 5 — Chạy bot
-
-```bash
 python bot.py
 ```
+*(Nếu thấy log `BizBot đang chạy...` là thành công)*
 
-Nếu thấy log `BizBot đang chạy...` là thành công ✅
+#### 2. Chạy Backend API (Cung cấp API cho web)
+Mở một terminal mới và chạy:
+```bash
+uvicorn api:app --reload
+```
+*(Backend sẽ chạy tại http://localhost:8000)*
+
+#### 3. Chạy Web Dashboard (Dành cho Kế toán)
+Mở một terminal mới, chuyển vào thư mục `dashboard`:
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+*(Dashboard sẽ chạy tại http://localhost:5173)*
 
 ---
 
-## 🤖 Các lệnh bot hỗ trợ
+## 🤖 Các lệnh Bot Telegram
 
 | Lệnh | Mô tả |
 |------|-------|
-| `/start` | Chào mừng & hướng dẫn |
-| `/help` | Xem hướng dẫn sử dụng |
-| `/history` | Xem 5 hóa đơn gần nhất |
-| Gửi ảnh | Phân tích & lưu hóa đơn |
+| `/start` | Chào mừng, hướng dẫn & đăng ký user |
+| `/help` | Xem hướng dẫn sử dụng chi tiết |
+| `/history` | Xem 5 hóa đơn gần nhất của bạn |
+| `/expense` | Nhập chi phí thủ công (VD: `/expense 50000 An trua`) |
+| `/report` | (Dành cho Admin) Báo cáo tổng chi phí trong ngày |
+| `/export` | (Dành cho Admin) Xuất toàn bộ dữ liệu ra file CSV |
+| Gửi ảnh | AI sẽ tự động phân tích, kiểm tra trùng lặp & lưu hóa đơn |
 
 ---
 
-## 🗃️ Cấu trúc database
+## 🗃️ Cấu trúc hệ thống & Database
 
-File `invoices.db` (SQLite) tự động tạo khi chạy lần đầu.
-
-Bảng `invoices`:
-
-| Cột | Kiểu | Mô tả |
-|-----|------|-------|
-| id | INTEGER | Mã hóa đơn tự tăng |
-| user_id | INTEGER | ID người dùng Telegram |
-| store_name | TEXT | Tên cửa hàng |
-| date | TEXT | Ngày trên hóa đơn |
-| items | TEXT | JSON danh sách hàng |
-| total_amount | REAL | Tổng tiền |
-| raw_json | TEXT | Toàn bộ JSON từ Gemini |
-| created_at | TEXT | Thời gian lưu |
+Dữ liệu được lưu trong file `invoices.db` (SQLite) và tự động tạo khi chạy lần đầu. Hệ thống kết nối chặt chẽ giữa:
+1. **Bot Telegram**: Người dùng gửi ảnh, Bot dùng AI phân tích, cảnh báo trùng lặp (nếu có), lưu vào DB và báo cho Admin.
+2. **Web Dashboard**: Giao diện UI cho kế toán xem báo cáo, quản lý nhân viên và duyệt/từ chối hóa đơn.
+3. **Backend API**: Khi kế toán thao tác trên web, API sẽ lưu trạng thái vào DB và tự động gửi tin nhắn Telegram báo kết quả lại cho người dùng thông qua Bot.
 
 ---
 
 ## ⚠️ Lưu ý
 
-- File `.env` chứa thông tin nhạy cảm — **KHÔNG** đưa lên GitHub
-- Thêm `.env` vào `.gitignore`
-- Gemini free tier: ~1500 request/ngày, đủ để demo
-- Ảnh hóa đơn cần rõ nét, đủ sáng để AI đọc chính xác
+- File `.env` chứa thông tin nhạy cảm — **KHÔNG** đưa lên GitHub. Thêm vào `.gitignore`.
+- Gemini free tier có giới hạn request nhất định nhưng đủ dùng cho quy mô nhỏ & demo.
+- Ảnh hóa đơn người dùng gửi lên cần rõ nét, đủ sáng để AI đọc chính xác nhất.
