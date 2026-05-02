@@ -48,7 +48,11 @@ python bot.py
 #### 2. Chạy Backend API (Cung cấp API cho web)
 Mở một terminal mới và chạy:
 ```bash
-uvicorn api:app --reload
+# Nếu dùng Windows:
+.venv\Scripts\python -m uvicorn api:app --reload
+
+# Nếu dùng Mac/Linux:
+.venv/bin/python -m uvicorn api:app --reload
 ```
 *(Backend sẽ chạy tại http://localhost:8000)*
 
@@ -67,12 +71,10 @@ npm run dev
 
 | Lệnh | Mô tả |
 |------|-------|
-| `/start` | Chào mừng, hướng dẫn & đăng ký user |
+| `/start` | Khởi động bot & tự động đăng ký hệ thống |
 | `/help` | Xem hướng dẫn sử dụng chi tiết |
 | `/history` | Xem 5 hóa đơn gần nhất của bạn |
 | `/expense` | Nhập chi phí thủ công (VD: `/expense 50000 An trua`) |
-| `/report` | (Dành cho Admin) Báo cáo tổng chi phí trong ngày |
-| `/export` | (Dành cho Admin) Xuất toàn bộ dữ liệu ra file CSV |
 | Gửi ảnh | AI sẽ tự động phân tích, kiểm tra trùng lặp & lưu hóa đơn |
 
 ---
@@ -80,7 +82,7 @@ npm run dev
 ## 🗃️ Cấu trúc hệ thống & Database
 
 Dữ liệu được lưu trong file `invoices.db` (SQLite) và tự động tạo khi chạy lần đầu. Hệ thống kết nối chặt chẽ giữa:
-1. **Bot Telegram**: Người dùng gửi ảnh, Bot dùng AI phân tích, cảnh báo trùng lặp (nếu có), lưu vào DB và báo cho Admin.
+1. **Bot Telegram**: Người dùng gửi ảnh, Bot dùng AI phân tích, cảnh báo trùng lặp (nếu có), lưu vào DB và báo cho Kế toán (trên Dashboard).
 2. **Web Dashboard**: Giao diện UI cho kế toán xem báo cáo, quản lý nhân viên và duyệt/từ chối hóa đơn.
 3. **Backend API**: Khi kế toán thao tác trên web, API sẽ lưu trạng thái vào DB và tự động gửi tin nhắn Telegram báo kết quả lại cho người dùng thông qua Bot.
 
