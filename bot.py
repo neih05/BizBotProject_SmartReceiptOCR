@@ -99,6 +99,12 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_bytes = await file.download_as_bytearray()
 
         data = extract_invoice(bytes(image_bytes))
+        data['file_id'] = photo.file_id
+
+        # Lưu ảnh cục bộ để dashboard xem được
+        os.makedirs("uploads", exist_ok=True)
+        with open(f"uploads/{photo.file_id}.jpg", "wb") as f:
+            f.write(image_bytes)
 
         if data.get("is_invoice") is False:
             await processing_msg.edit_text("⚠️ Đây không phải hóa đơn, vui lòng gửi lại ảnh khác.")

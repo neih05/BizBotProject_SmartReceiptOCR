@@ -2,6 +2,7 @@ import os
 import sqlite3
 import json
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
@@ -100,6 +101,27 @@ async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate):
             print("Lỗi gửi tin nhắn Telegram:", e)
             
     return {"success": True, "message": "Updated successfully"}
+
+@app.get("/api/invoices/{invoice_id}/image")
+def get_invoice_image(invoice_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT raw_json FROM invoices WHERE id = ?", (invoice_id,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row and row['raw_json']:
+        try:
+            data = json.loads(row['raw_json'])
+            file_id = data.get('file_id')
+            if file_id:
+                path = f"uploads/{file_id}.jpg"
+                if os.path.exists(path):
+                    return FileResponse(path)
+        except Exception:
+            pass
+            
+    raise HTTPException(status_code=404, detail="Image not found")
 
 @app.get("/api/employees")
 def get_employees():

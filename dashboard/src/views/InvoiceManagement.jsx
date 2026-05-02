@@ -5,7 +5,7 @@ import { formatCurrency, accounts, departments } from '../mockData';
 const InvoiceManagement = () => {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  
+
   // OCR Form State
   const [formData, setFormData] = useState({});
 
@@ -75,7 +75,7 @@ const InvoiceManagement = () => {
   };
 
   const getStatusBadge = (status) => {
-    switch(status) {
+    switch (status) {
       case 'pending': return <span className="px-2.5 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">Chờ xử lý</span>;
       case 'processing': return <span className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">Đang xử lý</span>;
       case 'approved': return <span className="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full">Đã hạch toán</span>;
@@ -123,8 +123,8 @@ const InvoiceManagement = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {invoices.map((inv) => (
-                  <tr 
-                    key={inv.id} 
+                  <tr
+                    key={inv.id}
                     className="hover:bg-blue-50 cursor-pointer group transition-colors"
                     onClick={() => handleRowClick(inv)}
                   >
@@ -165,10 +165,26 @@ const InvoiceManagement = () => {
                 <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
               </div>
               <div className="flex-1 flex items-center justify-center p-8">
-                <div className="bg-white shadow-lg w-full max-w-md h-[600px] rounded flex flex-col items-center justify-center border border-slate-200">
-                  <FileImage className="w-16 h-16 text-slate-300 mb-4" />
-                  <p className="text-slate-500 font-medium">Ảnh hóa đơn sẽ được load từ file_id</p>
-                  <p className="text-sm text-slate-400 mt-2">ID: {selectedInvoice.id}</p>
+                <div className="bg-white shadow-lg w-full max-w-md h-[600px] rounded flex flex-col items-center justify-center border border-slate-200 overflow-hidden relative">
+                  {selectedInvoice ? (
+                    <img
+                      src={`http://localhost:8000/api/invoices/${selectedInvoice.id}/image`}
+                      alt={`Hóa đơn ${selectedInvoice.id}`}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'flex';
+                        }
+                      }}
+                    />
+                  ) : null}
+                  <div className="flex flex-col items-center justify-center w-full h-full absolute inset-0 bg-white" style={{ display: 'none' }}>
+                    <FileImage className="w-16 h-16 text-slate-300 mb-4" />
+                    <p className="text-slate-500 font-medium">Không tìm thấy ảnh hóa đơn</p>
+                    <p className="text-sm text-slate-400 mt-2">ID: {selectedInvoice.id}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -181,28 +197,35 @@ const InvoiceManagement = () => {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="flex-1 overflow-auto p-6">
+                {selectedInvoice.ocr?.is_suspicious_duplicate && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 font-bold flex items-center">
+                      ⚠️ CẢNH BÁO: Hóa đơn này có dấu hiệu trùng lặp (đã được gửi trước đó), vui lòng kiểm tra lại!
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Nhà cung cấp</label>
-                      <input type="text" value={formData.supplierName} onChange={e => setFormData({...formData, supplierName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.supplierName} onChange={e => setFormData({ ...formData, supplierName: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Mã số thuế</label>
-                      <input type="text" value={formData.taxCode} onChange={e => setFormData({...formData, taxCode: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.taxCode} onChange={e => setFormData({ ...formData, taxCode: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Số hóa đơn</label>
-                      <input type="text" value={formData.invNo} onChange={e => setFormData({...formData, invNo: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.invNo} onChange={e => setFormData({ ...formData, invNo: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Ngày hóa đơn</label>
-                      <input type="text" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.date} onChange={e => setFormData({ ...formData, date: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                     </div>
                   </div>
 
@@ -211,11 +234,11 @@ const InvoiceManagement = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tổng tiền chưa VAT</span>
-                        <input type="text" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={formData.amount} onChange={e => setFormData({ ...formData, amount: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tiền thuế GTGT</span>
-                        <input type="text" value={formData.taxAmount} onChange={e => setFormData({...formData, taxAmount: e.target.value})} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={formData.taxAmount} onChange={e => setFormData({ ...formData, taxAmount: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" />
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                         <span className="text-sm font-bold text-navy-900">Tổng cộng thanh toán</span>
@@ -229,7 +252,7 @@ const InvoiceManagement = () => {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Tài khoản Nợ</label>
-                        <select value={formData.debitAccount} onChange={e => setFormData({...formData, debitAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.debitAccount} onChange={e => setFormData({ ...formData, debitAccount: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
                           {accounts.filter(a => a.level === 1 || a.level === 2).map(acc => (
                             <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
                           ))}
@@ -237,7 +260,7 @@ const InvoiceManagement = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Tài khoản Có</label>
-                        <select value={formData.creditAccount} onChange={e => setFormData({...formData, creditAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.creditAccount} onChange={e => setFormData({ ...formData, creditAccount: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
                           {accounts.filter(a => a.level === 1 || a.level === 2).map(acc => (
                             <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
                           ))}
@@ -247,7 +270,7 @@ const InvoiceManagement = () => {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Loại chi phí</label>
-                        <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
                           <option>Tiếp khách</option>
                           <option>Văn phòng phẩm</option>
                           <option>Di chuyển</option>
@@ -257,31 +280,33 @@ const InvoiceManagement = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Phòng ban (Cost Center)</label>
-                        <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.department} onChange={e => setFormData({ ...formData, department: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500">
                           {departments.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Ghi chú (Gửi kèm về Telegram)</label>
-                      <textarea rows="2" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" placeholder="Thêm ghi chú nội bộ..."></textarea>
+                      <textarea rows="2" value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500" placeholder="Thêm ghi chú nội bộ..."></textarea>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between rounded-b-xl">
-                <button onClick={closeSplitView} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
-                  Hủy (Esc)
+                <button onClick={closeSplitView} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                  {selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected' ? 'Đóng (Esc)' : 'Hủy (Esc)'}
                 </button>
-                <div className="space-x-3">
-                  <button onClick={() => handleAction('rejected')} className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50">
-                    Từ chối
-                  </button>
-                  <button onClick={() => handleAction('approved')} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center">
-                    <Check className="w-4 h-4 mr-2" /> Ghi sổ (Enter)
-                  </button>
-                </div>
+                {selectedInvoice.status !== 'approved' && selectedInvoice.status !== 'rejected' && (
+                  <div className="space-x-3">
+                    <button onClick={() => handleAction('rejected')} className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50">
+                      Từ chối
+                    </button>
+                    <button onClick={() => handleAction('approved')} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center">
+                      <Check className="w-4 h-4 mr-2" /> Ghi sổ (Enter)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>
