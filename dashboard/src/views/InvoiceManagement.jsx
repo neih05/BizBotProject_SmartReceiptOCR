@@ -165,7 +165,7 @@ const InvoiceManagement = () => {
                     <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
                     <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium whitespace-nowrap">
                         {inv.ocr?.category || 'Khác'}
                       </span>
                     </td>
