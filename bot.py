@@ -133,7 +133,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_dup = False
         dup_ids = []
         if store and date and amt:
-            dup_ids = find_duplicate_ids(store, date, amt)
+            dup_ids = find_duplicate_ids(store, amt)
             is_dup = len(dup_ids) > 0
             data['is_suspicious_duplicate'] = is_dup
             data['duplicate_of_ids'] = dup_ids
@@ -260,7 +260,7 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data["category"] = category
     
     date_str = user_data.get("date", datetime.now().strftime("%d/%m/%Y"))
-    dup_ids = find_duplicate_ids(store_name, date_str, amount)
+    dup_ids = find_duplicate_ids(store_name, amount)
     is_dup = len(dup_ids) > 0
     user_data["is_suspicious_duplicate"] = is_dup
     user_data["duplicate_of_ids"] = dup_ids
@@ -320,7 +320,7 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     today_str = datetime.now().strftime("%d/%m/%Y")
     
-    dup_ids = find_duplicate_ids(store_name, today_str, amount)
+    dup_ids = find_duplicate_ids(store_name, amount)
     is_dup = len(dup_ids) > 0
 
     data = {
