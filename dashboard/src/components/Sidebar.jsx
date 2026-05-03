@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Receipt, 
@@ -9,9 +9,23 @@ import {
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = () => {
+      fetch('http://localhost:8000/api/stats')
+        .then(res => res.json())
+        .then(data => setPendingCount(data.pending_invoices || 0))
+        .catch(() => {});
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 15000); // Cập nhật mỗi 15 giây
+    return () => clearInterval(interval);
+  }, []);
+
   const navItems = [
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'invoices', label: 'Hóa đơn', icon: Receipt },
+    { id: 'invoices', label: 'Hóa đơn', icon: Receipt, badge: pendingCount > 0 ? pendingCount : null },
     { id: 'employees', label: 'Nhân sự', icon: Users },
     { id: 'master', label: 'Danh mục', icon: Database },
     { id: 'export', label: 'Xuất báo cáo', icon: FileDown },

@@ -8,6 +8,8 @@ import { departments, weeklyChartData, categoryPieData, formatCurrency } from '.
 import { apiClient } from '../apiClient';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6'];
+const weeklyChartData = [];
+const categoryPieData = [];
 
 const Overview = () => {
   const [chartTab, setChartTab] = useState('week');

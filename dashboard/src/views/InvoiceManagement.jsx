@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
 import { formatCurrency, accounts, departments } from '../mockData';
 import { apiClient } from '../apiClient';
+import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
+import { formatCurrency, accounts, departments, expenseTags } from '../mockData';
 
 const InvoiceManagement = () => {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // OCR Form State
   const [formData, setFormData] = useState({});
@@ -95,11 +99,27 @@ const InvoiceManagement = () => {
           <div className="flex space-x-3">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input type="text" placeholder="Tìm kiếm hóa đơn..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm #Mã HĐ, tên..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" 
+              />
             </div>
-            <button className="flex items-center px-4 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium hover:bg-slate-50">
-              <Filter className="w-4 h-4 mr-2" /> Lọc
-            </button>
+            <div className="relative">
+              <Filter className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-9 pr-8 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="approved">Đã hạch toán</option>
+                <option value="rejected">Bị từ chối</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -116,13 +136,26 @@ const InvoiceManagement = () => {
                   <th className="px-4 py-3 font-semibold">Ngày nhận</th>
                   <th className="px-4 py-3 font-semibold">Người gửi</th>
                   <th className="px-4 py-3 font-semibold">Nhà cung cấp</th>
+                  <th className="px-4 py-3 font-semibold">Danh mục</th>
                   <th className="px-4 py-3 font-semibold text-right">Số tiền tạm tính</th>
                   <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
                   <th className="px-4 py-3 font-semibold text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices.map((inv) => (
+                {invoices
+                  .filter(inv => filterStatus === 'all' || inv.status === filterStatus)
+                  .filter(inv => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      inv.id.toString().includes(query) ||
+                      (inv.sender_name && inv.sender_name.toLowerCase().includes(query)) ||
+                      (inv.store_name && inv.store_name.toLowerCase().includes(query)) ||
+                      (inv.user_id && inv.user_id.toString().includes(query))
+                    );
+                  })
+                  .map((inv) => (
                   <tr 
                     key={inv.id} 
                     className="hover:bg-blue-50 cursor-pointer group transition-colors"
@@ -133,8 +166,22 @@ const InvoiceManagement = () => {
                     <td className="px-4 py-3 text-slate-600">{inv.date}</td>
                     <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
                     <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium whitespace-nowrap">
+                        {inv.ocr?.category || 'Khác'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.total_amount)}</td>
-                    <td className="px-4 py-3 text-center">{getStatusBadge(inv.status)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        {getStatusBadge(inv.status)}
+                        {inv.ocr?.is_suspicious_duplicate && (
+                          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold bg-orange-50 text-orange-600 rounded border border-orange-200" title="Nghi ngờ trùng lặp">
+                            <AlertTriangle className="w-3 h-3 mr-1" />Trùng lặp
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-center">
                       <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-md opacity-0 group-hover:opacity-100 transition-all">
                         <Eye className="w-4 h-4" />
@@ -181,6 +228,7 @@ const InvoiceManagement = () => {
 
             {/* Split Right: OCR Form */}
             <div className="w-[40%] bg-white border border-slate-200 rounded-xl flex flex-col shadow-sm">
+              {(() => { var isLocked = selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'; return null; })()}
               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
                 <h3 className="font-bold text-navy-900">Đối soát Hóa đơn #{selectedInvoice.id}</h3>
                 <button onClick={closeSplitView} className="p-1 text-slate-400 hover:text-slate-600 rounded">
@@ -190,25 +238,40 @@ const InvoiceManagement = () => {
               
               <div className="flex-1 overflow-auto p-6">
                 <div className="space-y-5">
+                  {selectedInvoice.ocr?.is_suspicious_duplicate && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start">
+                      <AlertTriangle className="w-5 h-5 text-orange-600 mr-3 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-bold text-orange-800">⚠️ Cảnh báo: Hóa đơn có dấu hiệu trùng lặp</p>
+                        <p className="text-xs text-orange-700 mt-1">
+                          Cùng cửa hàng, cùng ngày, cùng số tiền với hóa đơn 
+                          {selectedInvoice.ocr?.duplicate_of_ids?.length > 0 
+                            ? selectedInvoice.ocr.duplicate_of_ids.map(id => ` #${id}`).join(',') 
+                            : ' trước đó'}
+                          . Vui lòng xem xét kỹ trước khi duyệt.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Nhà cung cấp</label>
-                      <input type="text" value={formData.supplierName} onChange={e => setFormData({...formData, supplierName: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.supplierName} onChange={e => setFormData({...formData, supplierName: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Mã số thuế</label>
-                      <input type="text" value={formData.taxCode} onChange={e => setFormData({...formData, taxCode: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.taxCode} onChange={e => setFormData({...formData, taxCode: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Số hóa đơn</label>
-                      <input type="text" value={formData.invNo} onChange={e => setFormData({...formData, invNo: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.invNo} onChange={e => setFormData({...formData, invNo: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Ngày hóa đơn</label>
-                      <input type="text" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" />
+                      <input type="text" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                     </div>
                   </div>
 
@@ -217,11 +280,11 @@ const InvoiceManagement = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tổng tiền chưa VAT</span>
-                        <input type="text" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tiền thuế GTGT</span>
-                        <input type="text" value={formData.taxAmount} onChange={e => setFormData({...formData, taxAmount: e.target.value})} className="w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500" />
+                        <input type="text" value={formData.taxAmount} onChange={e => setFormData({...formData, taxAmount: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                         <span className="text-sm font-bold text-navy-900">Tổng cộng thanh toán</span>
@@ -235,7 +298,7 @@ const InvoiceManagement = () => {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Tài khoản Nợ</label>
-                        <select value={formData.debitAccount} onChange={e => setFormData({...formData, debitAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.debitAccount} onChange={e => setFormData({...formData, debitAccount: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
                           {accounts.filter(a => a.level === 1 || a.level === 2).map(acc => (
                             <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
                           ))}
@@ -243,7 +306,7 @@ const InvoiceManagement = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Tài khoản Có</label>
-                        <select value={formData.creditAccount} onChange={e => setFormData({...formData, creditAccount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.creditAccount} onChange={e => setFormData({...formData, creditAccount: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
                           {accounts.filter(a => a.level === 1 || a.level === 2).map(acc => (
                             <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
                           ))}
@@ -253,24 +316,23 @@ const InvoiceManagement = () => {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Loại chi phí</label>
-                        <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
-                          <option>Tiếp khách</option>
-                          <option>Văn phòng phẩm</option>
-                          <option>Di chuyển</option>
-                          <option>Công tác phí</option>
-                          <option>Khác</option>
+                        <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
+                          <option value="">-- Chọn loại chi phí --</option>
+                          {expenseTags.map(tag => (
+                            <option key={tag.id} value={tag.name}>{tag.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Phòng ban (Cost Center)</label>
-                        <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500">
+                        <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
                           {departments.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
                         </select>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 mb-1">Ghi chú (Gửi kèm về Telegram)</label>
-                      <textarea rows="2" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500" placeholder="Thêm ghi chú nội bộ..."></textarea>
+                      <textarea rows="2" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} placeholder="Thêm ghi chú nội bộ..."></textarea>
                     </div>
                   </div>
                 </div>
@@ -278,16 +340,26 @@ const InvoiceManagement = () => {
 
               <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between rounded-b-xl">
                 <button onClick={closeSplitView} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
-                  Hủy (Esc)
+                  Đóng (Esc)
                 </button>
-                <div className="space-x-3">
-                  <button onClick={() => handleAction('rejected')} className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50">
-                    Từ chối
-                  </button>
-                  <button onClick={() => handleAction('approved')} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center">
-                    <Check className="w-4 h-4 mr-2" /> Ghi sổ (Enter)
-                  </button>
-                </div>
+                {selectedInvoice.status === 'approved' ? (
+                  <span className="px-4 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center">
+                    <Check className="w-4 h-4 mr-2" /> Đã hạch toán — Không thể chỉnh sửa
+                  </span>
+                ) : selectedInvoice.status === 'rejected' ? (
+                  <span className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                    <X className="w-4 h-4 mr-2" /> Đã từ chối — Không thể chỉnh sửa
+                  </span>
+                ) : (
+                  <div className="space-x-3">
+                    <button onClick={() => handleAction('rejected')} className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50">
+                      Từ chối
+                    </button>
+                    <button onClick={() => handleAction('approved')} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center">
+                      <Check className="w-4 h-4 mr-2" /> Ghi sổ (Enter)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>
