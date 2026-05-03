@@ -33,7 +33,15 @@ export const accounts = [
 
 export const suppliers = [];
 
-export const departments = [];
+export const departments = [
+  { name: 'Ban Giám đốc' },
+  { name: 'Hành chính Nhân sự' },
+  { name: 'Kế toán Tài chính' },
+  { name: 'Kinh doanh & Marketing' },
+  { name: 'Phòng Kỹ thuật' },
+  { name: 'Phòng Dự án' },
+  { name: 'Khác' }
+];
 
 // Danh mục chi phí (tags) phổ biến trong nghiệp vụ kế toán
 export const expenseTags = [

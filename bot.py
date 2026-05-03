@@ -17,7 +17,7 @@ from database import (
     init_db, save_invoice, get_history, is_duplicate, find_duplicate_ids,
     get_user, save_user, get_employee_by_id
 )
-from gemini_handler import setup_gemini, extract_invoice
+from gemini_handler import setup_gemini, extract_invoice, categorize_text
 from formatter import format_invoice, format_history
 from datetime import datetime
 from telegram import BotCommand, BotCommandScopeDefault
@@ -93,8 +93,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Xin chào {name}!\n\n"
         "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
         "📋 Dùng /history để xem 5 hóa đơn gần nhất.\n"
-        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] - [Danh_mục] để nhập tay.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] để nhập tay.\n"
+        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
         parse_mode="Markdown"
     )
 
@@ -142,7 +142,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category_str = data.get("category") or "Khác"
         
         if is_dup:
-            result_text = "⚠️ *CẢNH BÁO TRÙNG LẶP*\nHệ thống phát hiện hóa đơn này (cùng cửa hàng, cùng ngày, cùng số tiền) có vẻ đã được gửi trước đó. Kế toán sẽ kiểm tra kỹ hóa đơn này!\n\n" + result_text
+            result_text = "⚠️ *CẢNH BÁO TRÙNG LẶP*\nHệ thống phát hiện hóa đơn này có vẻ đã được gửi trước đó. Kế toán sẽ kiểm tra kỹ hóa đơn này!\n\n" + result_text
             keyboard = [
                 [
                     InlineKeyboardButton("✅ Dù trùng nhưng vẫn lưu", callback_data="confirm_correct"),
@@ -150,10 +150,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
             ]
         else:
-            result_text += f"\n\nDanh mục dự đoán: {category_str}. Xác nhận?"
+            result_text += f"\n\nBạn có muốn lưu hóa đơn này không?"
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ Xác nhận đúng", callback_data="confirm_correct"),
+                    InlineKeyboardButton("✅ Xác nhận lưu", callback_data="confirm_correct"),
                     InlineKeyboardButton("✏️ Chỉnh sửa", callback_data="edit_invoice")
                 ]
             ]
@@ -202,17 +202,14 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         return ConversationHandler.END
         
     elif data == "edit_invoice":
-        # Pre-fill with actual OCR data for easy editing
-        amt = int(user_data.get("total_amount", 0))
-        store = user_data.get("store_name", "Tên cửa hàng")
-        cat = user_data.get("category", "Khác")
-        prefilled = f"/expense {amt} {store} - {cat}"
+        amount = user_data.get("total_amount", 0)
+        store = user_data.get("store_name", "Cơm trưa văn phòng")
         
         await query.edit_message_text(
             f"{query.message.text}\n\n"
-            "Cú pháp: `/expense [Số tiền] [Tên cửa hàng] - [Danh mục]`\n\n"
-            "✏️ Bạn có thể copy lệnh bên dưới, chỉnh sửa và gửi lại:\n"
-            f"`{prefilled}`",
+            "Bạn hãy gõ lại thông tin theo cú pháp sau:\n"
+            "`/expense [Số tiền] [Tên cửa hàng]`\n"
+            f"Ví dụ: `/expense {int(amount)} {store}`",
             parse_mode="Markdown"
         )
         return WAIT_PHOTO_EDIT
@@ -235,25 +232,17 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(args) < 1:
             await update.message.reply_text(
                 "❌ Cú pháp không hợp lệ. Vui lòng gõ lại theo định dạng:\n"
-                "`/expense [Số tiền] [Tên_cửa_hàng] - [Danh mục]`\n"
-                "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+                "`/expense [Số tiền] [Tên cửa hàng]`\n"
+                "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
                 parse_mode="Markdown"
             )
             return WAIT_PHOTO_EDIT
             
         amount_str = args[0]
-        store_name_raw = " ".join(args[1:]) if len(args) > 1 else ""
-        if store_name_raw:
-            if " - " in store_name_raw:
-                parts = store_name_raw.rsplit(" - ", 1)
-                store_name = parts[0].strip()
-                category = parts[1].strip()
-            else:
-                store_name = store_name_raw
-                category = user_data.get("category", "Không phân loại")
-        else:
+        store_name = " ".join(args[1:]) if len(args) > 1 else ""
+        if not store_name:
             store_name = user_data.get("store_name", "Không rõ")
-            category = user_data.get("category", "Không phân loại")
+        category = user_data.get("category", "Không phân loại")
     else:
         amount_str = text
         store_name = user_data.get("store_name", "Không rõ")
@@ -297,8 +286,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not raw_args:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n",
+            "Cú pháp: `/expense [Số tiền] [Tên cửa hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n",
             parse_mode="Markdown"
         )
         return
@@ -306,8 +295,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = raw_args.split()
     if len(args) < 2:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n"
+            "Cú pháp: `/expense [Số tiền] [Tên cửa hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n"
             "(Cần tối thiểu số tiền và tên cửa hàng)", 
             parse_mode="Markdown"
         )
@@ -320,13 +309,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Số tiền không hợp lệ.")
         return
 
-    store_name_raw = " ".join(args[1:])
-    category = "Không phân loại"
-    store_name = store_name_raw
-    if " - " in store_name_raw:
-        parts = store_name_raw.rsplit(" - ", 1)
-        store_name = parts[0].strip()
-        category = parts[1].strip()
+    store_name = " ".join(args[1:])
+    category = categorize_text(store_name)
 
     today_str = datetime.now().strftime("%d/%m/%Y")
     
@@ -366,7 +350,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🚀 /start: Khởi động bot & tự động đăng ký hệ thống\n"
         "❓ /help: Xem hướng dẫn sử dụng chi tiết\n"
         "📜 /history: Xem 5 hóa đơn gần nhất của bạn\n"
-        "🖊️ /expense [số tiền] [Tên]: Nhập chi phí thủ công (VD: `/expense 50000 An trua`)\n"
+        "🖊️ /expense [Số tiền] [Tên cửa hàng]: Nhập chi phí thủ công (VD: `/expense 50000 Cơm trưa`)\n"
         "📸 *Gửi ảnh:* AI sẽ tự động phân tích, kiểm tra trùng lặp & lưu hóa đơn."
     )
     await update.message.reply_text(text, parse_mode="Markdown")

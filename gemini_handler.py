@@ -50,3 +50,26 @@ def extract_invoice(image_bytes: bytes) -> dict:
     
     data = json.loads(response.text)
     return data
+
+def categorize_text(text: str) -> str:
+    """
+    Gửi đoạn text (tên cửa hàng/chi phí) lên Gemini để dự đoán danh mục.
+    """
+    model = genai.GenerativeModel("gemini-3-flash-preview")
+    prompt = f"""
+    Bạn là kế toán viên. Hãy phân loại khoản chi phí sau vào 1 trong các danh mục: 
+    'Ăn uống', 'Đi lại', 'Tiếp khách', 'Mua sắm vật tư', 'Khác'.
+    Chỉ trả về ĐÚNG TÊN DANH MỤC, không thêm bất kỳ ký tự nào khác.
+    
+    Khoản chi phí: "{text}"
+    """
+    try:
+        response = model.generate_content(prompt)
+        cat = response.text.strip()
+        valid_cats = ['Ăn uống', 'Đi lại', 'Tiếp khách', 'Mua sắm vật tư', 'Khác']
+        for c in valid_cats:
+            if c.lower() in cat.lower():
+                return c
+        return 'Khác'
+    except:
+        return 'Khác'

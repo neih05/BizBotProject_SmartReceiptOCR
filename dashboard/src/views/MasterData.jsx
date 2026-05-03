@@ -8,6 +8,7 @@ const MasterData = () => {
   const [suppliersList, setSuppliersList] = useState(defaultSuppliers);
   const [tagsList, setTagsList] = useState(defaultTags);
   const [showModal, setShowModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
 
   // Form states cho từng loại
@@ -96,7 +97,13 @@ const MasterData = () => {
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input type="text" placeholder={`Tìm kiếm ${tab === 'accounts' ? 'tài khoản' : tab === 'suppliers' ? 'nhà cung cấp' : 'danh mục'}...`} className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80" />
+            <input 
+              type="text" 
+              placeholder={`Tìm kiếm ${tab === 'accounts' ? 'tài khoản' : tab === 'suppliers' ? 'nhà cung cấp' : 'danh mục'}...`} 
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
           <button
             onClick={openModal}
@@ -118,17 +125,28 @@ const MasterData = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {accountsList.map((acc, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-medium text-navy-900">{acc.code}</td>
-                    <td className={`px-6 py-3 text-slate-700 ${acc.level > 1 ? 'pl-10' : 'font-semibold'}`}>{acc.name}</td>
-                    <td className="px-6 py-3 text-slate-500">{acc.type}</td>
-                    <td className="px-6 py-3 text-slate-500">Cấp {acc.level}</td>
-                  </tr>
-                ))}
-                {accountsList.length === 0 && (
-                  <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">Chưa có tài khoản nào.</td></tr>
-                )}
+                {(() => {
+                  const filtered = accountsList.filter(acc => 
+                    !searchQuery || 
+                    acc.code.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    acc.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                  return (
+                    <>
+                      {filtered.map((acc, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-6 py-3 font-medium text-navy-900">{acc.code}</td>
+                          <td className={`px-6 py-3 text-slate-700 ${acc.level > 1 ? 'pl-10' : 'font-semibold'}`}>{acc.name}</td>
+                          <td className="px-6 py-3 text-slate-500">{acc.type}</td>
+                          <td className="px-6 py-3 text-slate-500">Cấp {acc.level}</td>
+                        </tr>
+                      ))}
+                      {filtered.length === 0 && (
+                        <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">Chưa có tài khoản nào phù hợp.</td></tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           ) : tab === 'suppliers' ? (
@@ -142,17 +160,28 @@ const MasterData = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {suppliersList.map((sup, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-medium text-navy-900">{sup.name}</td>
-                    <td className="px-6 py-3 text-slate-600 font-mono">{sup.taxCode}</td>
-                    <td className="px-6 py-3 text-center font-medium">{sup.invoicesCount}</td>
-                    <td className="px-6 py-3 text-slate-500">{sup.lastTransaction}</td>
-                  </tr>
-                ))}
-                {suppliersList.length === 0 && (
-                  <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">Chưa có nhà cung cấp nào.</td></tr>
-                )}
+                {(() => {
+                  const filtered = suppliersList.filter(sup => 
+                    !searchQuery || 
+                    sup.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    (sup.taxCode && sup.taxCode.includes(searchQuery))
+                  );
+                  return (
+                    <>
+                      {filtered.map((sup, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-6 py-3 font-medium text-navy-900">{sup.name}</td>
+                          <td className="px-6 py-3 text-slate-600 font-mono">{sup.taxCode}</td>
+                          <td className="px-6 py-3 text-center font-medium">{sup.invoicesCount}</td>
+                          <td className="px-6 py-3 text-slate-500">{sup.lastTransaction}</td>
+                        </tr>
+                      ))}
+                      {filtered.length === 0 && (
+                        <tr><td colSpan="4" className="px-6 py-8 text-center text-slate-500">Chưa có nhà cung cấp nào phù hợp.</td></tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           ) : (
@@ -165,20 +194,31 @@ const MasterData = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {tagsList.map((tag) => (
-                  <tr key={tag.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-medium text-navy-900">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs border border-blue-100">{tag.name}</span>
-                    </td>
-                    <td className="px-6 py-3 text-slate-600">{tag.description}</td>
-                    <td className="px-6 py-3 text-center">
-                      <button onClick={() => deleteTag(tag.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Xóa</button>
-                    </td>
-                  </tr>
-                ))}
-                {tagsList.length === 0 && (
-                  <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-500">Chưa có danh mục chi phí nào.</td></tr>
-                )}
+                {(() => {
+                  const filtered = tagsList.filter(tag => 
+                    !searchQuery || 
+                    tag.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    (tag.description && tag.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                  );
+                  return (
+                    <>
+                      {filtered.map((tag) => (
+                        <tr key={tag.id} className="hover:bg-slate-50">
+                          <td className="px-6 py-3 font-medium text-navy-900">
+                            <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs border border-blue-100">{tag.name}</span>
+                          </td>
+                          <td className="px-6 py-3 text-slate-600">{tag.description}</td>
+                          <td className="px-6 py-3 text-center">
+                            <button onClick={() => deleteTag(tag.id)} className="text-red-600 hover:text-red-800 text-xs font-medium">Xóa</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {filtered.length === 0 && (
+                        <tr><td colSpan="3" className="px-6 py-8 text-center text-slate-500">Chưa có danh mục nào phù hợp.</td></tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           )}
