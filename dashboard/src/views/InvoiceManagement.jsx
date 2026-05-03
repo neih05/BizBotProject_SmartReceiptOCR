@@ -9,6 +9,8 @@ const InvoiceManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
   
   // OCR Form State
   const [formData, setFormData] = useState({});
@@ -32,6 +34,8 @@ const InvoiceManagement = () => {
 
   const handleRowClick = (inv) => {
     setSelectedInvoice(inv);
+    setZoom(1);
+    setRotation(0);
     setFormData({
       supplierName: inv.store_name || inv.ocr?.taxCode || '',
       taxCode: inv.ocr?.taxCode || '',
@@ -229,14 +233,19 @@ const InvoiceManagement = () => {
             {/* Split Left: Image Preview */}
             <div className="w-[60%] bg-slate-100 border border-slate-200 rounded-xl flex flex-col relative overflow-hidden">
               <div className="absolute top-4 right-4 flex space-x-2 z-10">
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomIn className="w-4 h-4" /></button>
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomOut className="w-4 h-4" /></button>
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => z + 0.25)} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomIn className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomOut className="w-4 h-4" /></button>
+                <button onClick={() => setRotation(r => r + 90)} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
               </div>
               <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
                 <div className="bg-white shadow-lg w-full max-w-md h-full rounded flex flex-col items-center justify-center border border-slate-200 overflow-hidden">
                   {selectedInvoice.ocr?.file_id ? (
-                    <img src={`http://127.0.0.1:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} alt="Invoice" className="w-full h-full object-contain" />
+                    <img 
+                      src={`http://127.0.0.1:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} 
+                      alt="Invoice" 
+                      className="w-full h-full object-contain transition-transform duration-200" 
+                      style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
+                    />
                   ) : (
                     <>
                       <FileImage className="w-16 h-16 text-slate-300 mb-4" />

@@ -132,9 +132,9 @@ def find_duplicate_ids(store_name: str, date: str, total_amount: float, exclude_
     
     query = """
         SELECT id, store_name FROM invoices 
-        WHERE date = ? AND total_amount = ? AND status != 'rejected'
+        WHERE total_amount = ? AND status != 'rejected'
     """
-    params = [date, total_amount]
+    params = [total_amount]
     
     if exclude_id is not None:
         query += " AND id != ?"
