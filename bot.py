@@ -374,7 +374,7 @@ def main():
         await application.bot.set_my_commands(staff_commands, scope=BotCommandScopeDefault())
         logger.info("Hệ thống menu đã được thiết lập.")
 
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).read_timeout(30).connect_timeout(30).build()
 
     photo_conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, handle_photo)],

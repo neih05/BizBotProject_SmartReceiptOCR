@@ -8,9 +8,6 @@ import { departments, weeklyChartData, categoryPieData, formatCurrency } from '.
 import { apiClient } from '../apiClient';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6'];
-const weeklyChartData = [];
-const categoryPieData = [];
-
 const Overview = () => {
   const [chartTab, setChartTab] = useState('week');
   const [stats, setStats] = useState({
@@ -20,6 +17,9 @@ const Overview = () => {
     approved_month_value: 0,
     budget_warnings: 0
   });
+
+  const displayWeeklyData = weeklyChartData || [];
+  const displayCategoryData = categoryPieData || [];
 
   useEffect(() => {
     apiClient('/stats')
@@ -117,7 +117,7 @@ const Overview = () => {
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyChartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+              <BarChart data={displayWeeklyData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
                 <YAxis 
@@ -146,7 +146,7 @@ const Overview = () => {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={categoryPieData}
+                  data={displayCategoryData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -169,7 +169,7 @@ const Overview = () => {
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            {categoryPieData.map((item, index) => (
+            {displayCategoryData.map((item, index) => (
               <div key={index} className="flex items-center text-xs">
                 <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[index % COLORS.length]}}></span>
                 <span className="text-slate-600 truncate">{item.name}</span>

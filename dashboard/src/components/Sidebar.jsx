@@ -7,13 +7,14 @@ import {
   FileDown, 
   LogOut 
 } from 'lucide-react';
+import { apiClient } from '../apiClient';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const fetchPending = () => {
-      fetch('http://localhost:8000/api/stats')
+      apiClient('/stats')
         .then(res => res.json())
         .then(data => setPendingCount(data.pending_invoices || 0))
         .catch(() => {});
