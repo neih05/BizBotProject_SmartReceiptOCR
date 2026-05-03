@@ -108,6 +108,10 @@ class InvoiceUpdate(BaseModel):
     department: str = ""
     notes: str = ""
     totalAmount: float = 0
+    date: str = ""
+    supplierName: str = ""
+    taxCode: str = ""
+    invNo: str = ""
 
 @app.post("/api/invoices/{invoice_id}/status")
 async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate, current_user: str = Depends(get_current_user)):
@@ -130,13 +134,17 @@ async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate, cur
     current_raw['creditAccount'] = update_data.creditAccount
     current_raw['department'] = update_data.department
     current_raw['notes'] = update_data.notes
+    current_raw['date'] = update_data.date
+    current_raw['store_name'] = update_data.supplierName
+    current_raw['taxCode'] = update_data.taxCode
+    current_raw['invNo'] = update_data.invNo
     
-    # Update status, amount and raw_json
+    # Update status, amount, raw_json, date and store_name
     cursor.execute("""
         UPDATE invoices 
-        SET status = ?, total_amount = ?, raw_json = ? 
+        SET status = ?, total_amount = ?, raw_json = ?, date = ?, store_name = ?
         WHERE id = ?
-    """, (update_data.status, update_data.totalAmount, json.dumps(current_raw), invoice_id))
+    """, (update_data.status, update_data.totalAmount, json.dumps(current_raw), update_data.date, update_data.supplierName, invoice_id))
     conn.commit()
     conn.close()
     

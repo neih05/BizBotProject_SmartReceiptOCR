@@ -61,7 +61,11 @@ const InvoiceManagement = () => {
           category: formData.category,
           department: formData.department,
           notes: formData.notes,
-          totalAmount: parseFloat(formData.amount) || 0
+          totalAmount: parseFloat(formData.amount) || 0,
+          date: formData.date,
+          supplierName: formData.supplierName,
+          taxCode: formData.taxCode,
+          invNo: formData.invNo
         })
       });
       if (res.ok) {
