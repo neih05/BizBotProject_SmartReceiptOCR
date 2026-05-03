@@ -182,10 +182,10 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         invoice_id = save_invoice(user_id, user_data, status='pending')
         await query.edit_message_text(f"{query.message.text}\n\n✅ *Đã lưu thành công!*\n(Mã hóa đơn chờ duyệt: #{invoice_id})", parse_mode="Markdown")
         
-            # Duplicates are now managed primarily via the Web Dashboard.
-            # Notification logic for a specific Admin ID is removed per requirement.
-            pass
-                
+        # Duplicates are now managed primarily via the Web Dashboard.
+        # Notification logic for a specific Admin ID is removed per requirement.
+        pass
+        
         context.user_data.pop('temp_invoice', None)
         return ConversationHandler.END
         
