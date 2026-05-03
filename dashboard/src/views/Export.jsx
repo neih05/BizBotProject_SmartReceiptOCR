@@ -204,7 +204,7 @@ const Export = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="font-bold text-navy-900">Xem trước kết quả lọc (Mẫu 5 dòng)</h3>
+          <h3 className="font-bold text-navy-900">Xem trước kết quả lọc (Hiển thị {Math.min(filteredInvoices.length, 5)}/{filteredInvoices.length} dòng)</h3>
           <span className="text-sm text-slate-500">
             Tổng cộng: {formatCurrency(filteredInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0))}
           </span>
