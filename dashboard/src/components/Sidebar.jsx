@@ -65,7 +65,14 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             <p className="text-xs text-slate-400">Kế toán trưởng</p>
           </div>
         </div>
-        <button className="w-full flex items-center text-sm text-slate-400 hover:text-white transition-colors">
+        <button 
+          onClick={() => {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user_role');
+            window.dispatchEvent(new Event('unauthorized'));
+          }}
+          className="w-full flex items-center text-sm text-slate-400 hover:text-white transition-colors"
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Đăng xuất
         </button>

@@ -1,15 +1,25 @@
 import os
 import sqlite3
 import json
-from fastapi import FastAPI, HTTPException
+import hashlib
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 from dotenv import load_dotenv
+import jwt
 
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 DB_PATH = "invoices.db"
+
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-123")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
 
 app = FastAPI()
 
@@ -26,8 +36,46 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return username
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/login")
+def login(req: LoginRequest):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM web_users WHERE username = ?", (req.username,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Sai tài khoản hoặc mật khẩu")
+        
+    pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    if user['password_hash'] != pwd_hash:
+        raise HTTPException(status_code=401, detail="Sai tài khoản hoặc mật khẩu")
+        
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + access_token_expires
+    to_encode = {"sub": user['username'], "role": user['role'], "exp": expire}
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    
+    return {"access_token": encoded_jwt, "token_type": "bearer", "role": user['role']}
+
 @app.get("/api/invoices")
-def get_invoices():
+def get_invoices(current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
@@ -59,7 +107,7 @@ class InvoiceUpdate(BaseModel):
     totalAmount: float = 0
 
 @app.post("/api/invoices/{invoice_id}/status")
-async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate):
+async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate, current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     
@@ -106,7 +154,7 @@ class EmployeeCreate(BaseModel):
     real_name: str
 
 @app.get("/api/employees")
-def get_employees():
+def get_employees(current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     
@@ -146,7 +194,7 @@ def get_employees():
     return result
 
 @app.post("/api/employees")
-def add_employee(emp: EmployeeCreate):
+def add_employee(emp: EmployeeCreate, current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     
@@ -184,7 +232,7 @@ async def get_telegram_image(file_id: str):
     raise HTTPException(status_code=404, detail="Image not found")
 
 @app.get("/api/stats")
-def get_stats():
+def get_stats(current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     

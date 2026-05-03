@@ -1,6 +1,7 @@
 import sqlite3
 import json
 from datetime import datetime
+import hashlib
 
 DB_PATH = "invoices.db"
 
@@ -38,6 +39,19 @@ def init_db():
             real_name TEXT NOT NULL
         )
     """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS web_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT DEFAULT 'admin'
+        )
+    """)
+    
+    default_password = "admin"
+    pwd_hash = hashlib.sha256(default_password.encode()).hexdigest()
+    cursor.execute("INSERT OR IGNORE INTO web_users (username, password_hash, role) VALUES (?, ?, ?)", ('admin', pwd_hash, 'admin'))
     
     # Khai báo danh sách nhân viên thật của bạn ở đây để khi sang máy khác vẫn tự cập nhật
     employees_data = [

@@ -52,3 +52,20 @@ export const expenseTags = [
 export const formatCurrency = (value) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
+
+export const weeklyChartData = [
+  { name: 'T2', 'Tiếp khách': 4000000, 'Văn phòng phẩm': 2400000, 'Di chuyển': 2400000 },
+  { name: 'T3', 'Tiếp khách': 3000000, 'Văn phòng phẩm': 1398000, 'Di chuyển': 2210000 },
+  { name: 'T4', 'Tiếp khách': 2000000, 'Văn phòng phẩm': 9800000, 'Di chuyển': 2290000 },
+  { name: 'T5', 'Tiếp khách': 2780000, 'Văn phòng phẩm': 3908000, 'Di chuyển': 2000000 },
+  { name: 'T6', 'Tiếp khách': 1890000, 'Văn phòng phẩm': 4800000, 'Di chuyển': 2181000 },
+  { name: 'T7', 'Tiếp khách': 2390000, 'Văn phòng phẩm': 3800000, 'Di chuyển': 2500000 },
+  { name: 'CN', 'Tiếp khách': 3490000, 'Văn phòng phẩm': 4300000, 'Di chuyển': 2100000 },
+];
+
+export const categoryPieData = [
+  { name: 'Tiếp khách', value: 400 },
+  { name: 'Văn phòng phẩm', value: 300 },
+  { name: 'Di chuyển', value: 300 },
+  { name: 'Công tác phí', value: 200 },
+];
