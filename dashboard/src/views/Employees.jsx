@@ -142,9 +142,6 @@ const Employees = () => {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex space-x-2 justify-center">
-                      <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Lịch sử hóa đơn">
-                        <History className="w-4 h-4" />
-                      </button>
                       <button 
                         onClick={() => setConfirmAction({ type: 'toggle', payload: emp })}
                         className={`p-1.5 rounded ${emp.isActive ? 'text-slate-400 hover:text-orange-600 hover:bg-orange-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 

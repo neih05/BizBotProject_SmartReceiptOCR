@@ -147,7 +147,8 @@ const InvoiceManagement = () => {
               <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Mã HĐ</th>
-                  <th className="px-4 py-3 font-semibold">Ngày nhận</th>
+                  <th className="px-4 py-3 font-semibold">Ngày tải lên</th>
+                  <th className="px-4 py-3 font-semibold">Ngày trên HĐ</th>
                   <th className="px-4 py-3 font-semibold">Người gửi</th>
                   <th className="px-4 py-3 font-semibold">Nhà cung cấp</th>
                   <th className="px-4 py-3 font-semibold">Danh mục</th>
@@ -179,7 +180,10 @@ const InvoiceManagement = () => {
                           className="hover:bg-blue-50 transition-colors group"
                         >
                           <td className="px-4 py-3 font-medium">#{inv.id}</td>
-                          <td className="px-4 py-3 text-slate-600">{inv.date}</td>
+                          <td className="px-4 py-3 text-slate-500 text-sm whitespace-nowrap">
+                            {inv.created_at ? inv.created_at.split(' ')[0].split('-').reverse().join('/') : ''}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{inv.date}</td>
                           <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
                           <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
                           <td className="px-4 py-3">
@@ -211,7 +215,7 @@ const InvoiceManagement = () => {
                       ))}
                       {filteredInvoices.length === 0 && (
                         <tr>
-                          <td colSpan="8" className="px-4 py-8 text-center text-slate-500">
+                          <td colSpan="9" className="px-4 py-8 text-center text-slate-500">
                             Chưa có hóa đơn nào phù hợp.
                           </td>
                         </tr>
