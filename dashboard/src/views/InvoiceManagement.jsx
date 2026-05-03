@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
+import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle, Loader2 } from 'lucide-react';
 import { formatCurrency, accounts, departments, expenseTags } from '../mockData';
 import { apiClient } from '../apiClient';
 
@@ -8,17 +8,21 @@ const InvoiceManagement = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // OCR Form State
   const [formData, setFormData] = useState({});
 
   const fetchInvoices = async () => {
+    setIsRefreshing(true);
     try {
       const res = await apiClient('/invoices');
       const data = await res.json();
       setInvoices(data);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -120,10 +124,11 @@ const InvoiceManagement = () => {
             </div>
             <button 
               onClick={fetchInvoices}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm"
+              disabled={isRefreshing}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm disabled:opacity-70"
               title="Làm mới dữ liệu"
             >
-              <RotateCw className="w-4 h-4 mr-2" />
+              {isRefreshing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RotateCw className="w-4 h-4 mr-2" />}
               Làm mới
             </button>
           </div>
@@ -148,61 +153,68 @@ const InvoiceManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices
-                  .filter(inv => filterStatus === 'all' || inv.status === filterStatus)
-                  .filter(inv => {
-                    if (!searchQuery) return true;
-                    const query = searchQuery.toLowerCase();
-                    return (
-                      inv.id.toString().includes(query) ||
-                      (inv.sender_name && inv.sender_name.toLowerCase().includes(query)) ||
-                      (inv.store_name && inv.store_name.toLowerCase().includes(query)) ||
-                      (inv.user_id && inv.user_id.toString().includes(query))
-                    );
-                  })
-                  .map((inv) => (
-                  <tr 
-                    key={inv.id} 
-                    className="hover:bg-blue-50 transition-colors group"
-                  >
-                    <td className="px-4 py-3 font-medium">#{inv.id}</td>
-                    <td className="px-4 py-3 text-slate-600">{inv.date}</td>
-                    <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
-                    <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium whitespace-nowrap">
-                        {inv.ocr?.category || 'Khác'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.total_amount)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        {getStatusBadge(inv.status)}
-                        {inv.ocr?.is_suspicious_duplicate && (
-                          <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold bg-orange-50 text-orange-600 rounded border border-orange-200" title="Nghi ngờ trùng lặp">
-                            <AlertTriangle className="w-3 h-3 mr-1" />Trùng lặp
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button 
-                        onClick={() => handleRowClick(inv)}
-                        className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-all"
-                        title="Xem chi tiết"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {invoices.length === 0 && (
-                  <tr>
-                    <td colSpan="8" className="px-4 py-8 text-center text-slate-500">
-                      Chưa có hóa đơn nào trong hệ thống. Hãy tải lên qua Telegram!
-                    </td>
-                  </tr>
-                )}
+                {(() => {
+                  const filteredInvoices = invoices
+                    .filter(inv => filterStatus === 'all' || inv.status === filterStatus)
+                    .filter(inv => {
+                      if (!searchQuery) return true;
+                      const query = searchQuery.toLowerCase();
+                      return (
+                        inv.id.toString().includes(query) ||
+                        (inv.sender_name && inv.sender_name.toLowerCase().includes(query)) ||
+                        (inv.store_name && inv.store_name.toLowerCase().includes(query)) ||
+                        (inv.user_id && inv.user_id.toString().includes(query))
+                      );
+                    });
+                  
+                  return (
+                    <>
+                      {filteredInvoices.map((inv) => (
+                        <tr 
+                          key={inv.id} 
+                          className="hover:bg-blue-50 transition-colors group"
+                        >
+                          <td className="px-4 py-3 font-medium">#{inv.id}</td>
+                          <td className="px-4 py-3 text-slate-600">{inv.date}</td>
+                          <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
+                          <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium whitespace-nowrap">
+                              {inv.ocr?.category || 'Khác'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.total_amount)}</td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              {getStatusBadge(inv.status)}
+                              {inv.ocr?.is_suspicious_duplicate && (
+                                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold bg-orange-50 text-orange-600 rounded border border-orange-200" title="Nghi ngờ trùng lặp">
+                                  <AlertTriangle className="w-3 h-3 mr-1" />Trùng lặp
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button 
+                              onClick={() => handleRowClick(inv)}
+                              className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-all"
+                              title="Xem chi tiết"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredInvoices.length === 0 && (
+                        <tr>
+                          <td colSpan="8" className="px-4 py-8 text-center text-slate-500">
+                            Chưa có hóa đơn nào phù hợp.
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

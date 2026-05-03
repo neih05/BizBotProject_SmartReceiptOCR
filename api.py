@@ -303,15 +303,42 @@ def get_stats(current_user: str = Depends(get_current_user)):
     }
 
 @app.get("/api/export")
-def export_csv(current_user: str = Depends(get_current_user)):
+def export_csv(
+    status: str = None, 
+    department: str = None, 
+    maxAmount: float = None, 
+    senders: str = None,
+    current_user: str = Depends(get_current_user)
+):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("""
+    
+    query = """
         SELECT i.*, e.real_name as sender_name 
         FROM invoices i 
         LEFT JOIN employees e ON CAST(i.user_id AS TEXT) = e.employee_id
-        ORDER BY i.id DESC
-    """)
+        WHERE 1=1
+    """
+    params = []
+    
+    if status and status != "Tất cả trạng thái":
+        db_status = "approved" if status == "Đã hạch toán" else ("pending" if status == "Chờ xử lý" else "rejected")
+        query += " AND i.status = ?"
+        params.append(db_status)
+        
+    if maxAmount is not None:
+        query += " AND (i.total_amount IS NULL OR i.total_amount <= ?)"
+        params.append(maxAmount)
+        
+    if senders:
+        sender_list = [s for s in senders.split(',') if s.strip()]
+        if sender_list:
+            query += f" AND CAST(i.user_id AS TEXT) IN ({','.join(['?']*len(sender_list))})"
+            params.extend(sender_list)
+            
+    query += " ORDER BY i.id DESC"
+    
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
 
@@ -325,6 +352,10 @@ def export_csv(current_user: str = Depends(get_current_user)):
             ocr_data = json.loads(r.get('raw_json') or '{}')
         except:
             ocr_data = {}
+            
+        if department and department != "Tất cả phòng ban":
+            if ocr_data.get("department") != department:
+                continue
         
         writer.writerow([
             r['id'],
@@ -420,16 +451,43 @@ def get_charts(current_user: str = Depends(get_current_user)):
     }
 
 @app.get("/api/export-excel")
-def export_excel(current_user: str = Depends(get_current_user)):
+def export_excel(
+    status: str = None, 
+    department: str = None, 
+    maxAmount: float = None, 
+    senders: str = None,
+    current_user: str = Depends(get_current_user)
+):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("""
+    
+    query = """
         SELECT i.id, i.date, e.real_name as sender_name, 
-               i.store_name, i.total_amount, i.status, i.raw_json
+               i.store_name, i.total_amount, i.status, i.raw_json, i.user_id
         FROM invoices i 
         LEFT JOIN employees e ON CAST(i.user_id AS TEXT) = e.employee_id
-        ORDER BY i.id DESC
-    """)
+        WHERE 1=1
+    """
+    params = []
+    
+    if status and status != "Tất cả trạng thái":
+        db_status = "approved" if status == "Đã hạch toán" else ("pending" if status == "Chờ xử lý" else "rejected")
+        query += " AND i.status = ?"
+        params.append(db_status)
+        
+    if maxAmount is not None:
+        query += " AND (i.total_amount IS NULL OR i.total_amount <= ?)"
+        params.append(maxAmount)
+        
+    if senders:
+        sender_list = [s for s in senders.split(',') if s.strip()]
+        if sender_list:
+            query += f" AND CAST(i.user_id AS TEXT) IN ({','.join(['?']*len(sender_list))})"
+            params.extend(sender_list)
+            
+    query += " ORDER BY i.id DESC"
+    
+    cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
     
@@ -438,11 +496,20 @@ def export_excel(current_user: str = Depends(get_current_user)):
         row_dict = dict(r)
         try:
             ocr = json.loads(row_dict.pop('raw_json') or '{}')
+            
+            if department and department != "Tất cả phòng ban":
+                if ocr.get("department") != department:
+                    continue
+                    
             row_dict['category'] = ocr.get('category', 'Khác')
             row_dict['notes'] = ocr.get('notes', '')
         except:
+            if department and department != "Tất cả phòng ban":
+                continue
             row_dict['category'] = 'Khác'
             row_dict['notes'] = ''
+            
+        row_dict.pop('user_id', None)
         data.append(row_dict)
         
     df = pd.DataFrame(data)
