@@ -23,15 +23,11 @@ from datetime import datetime
 from telegram import BotCommand, BotCommandScopeDefault
 
 # ── Load biến môi trường ──────────────────────────────────────────────────────
-load_dotenv()
+load_dotenv(override=True)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY")
-ADMIN_ID = os.getenv("ADMIN_ID")
-
-if not TELEGRAM_TOKEN or not GEMINI_API_KEY or not ADMIN_ID:
-    raise ValueError("Thiếu TELEGRAM_TOKEN, GEMINI_API_KEY hoặc ADMIN_ID trong file .env")
-
-ADMIN_ID = int(ADMIN_ID)
+if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
+    raise ValueError("Thiếu TELEGRAM_TOKEN hoặc GEMINI_API_KEY trong file .env")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -83,6 +79,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = get_user(user_id)
     if not user:
         save_user(user_id, name, "DEFAULT_COMPANY", "staff", True)
+
+    # Cleanup any old user-specific command menus to force fallback to default
+    from telegram import BotCommandScopeChat
+    try:
+        await context.bot.delete_my_commands(scope=BotCommandScopeChat(chat_id=user_id))
+    except:
+        pass
 
     await update.message.reply_text(
         f"👋 Xin chào {name}!\n\n"
@@ -186,26 +189,10 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         invoice_id = save_invoice(user_id, user_data, status='pending')
         await query.edit_message_text(f"{query.message.text}\n\n✅ *Đã lưu thành công!*\n(Mã hóa đơn chờ duyệt: #{invoice_id})", parse_mode="Markdown")
         
-        if is_dup:
-            # Alert Admin
-            store = user_data.get("store_name", "Không rõ")
-            amount = user_data.get("total_amount", 0)
-            user_info = get_user(user_id)
-            user_name = user_info['full_name'] if user_info else f"ID: {user_id}"
-            
-            admin_msg = (
-                f"🚨 *CẢNH BÁO TRÙNG LẶP HÓA ĐƠN*\n\n"
-                f"Nhân viên: {user_name}\n"
-                f"Cửa hàng: {store}\n"
-                f"Số tiền: {amount:,.0f} đ\n"
-                f"Mã draft: #{invoice_id}\n\n"
-                f"Vui lòng vào Dashboard (Web) để xem xét và duyệt."
-            )
-            try:
-                await context.bot.send_message(chat_id=ADMIN_ID, text=admin_msg, parse_mode="Markdown")
-            except Exception as e:
-                logger.error(f"Cannot send warning to admin: {e}")
-                
+        # Duplicates are now managed primarily via the Web Dashboard.
+        # Notification logic for a specific Admin ID is removed per requirement.
+        pass
+        
         context.user_data.pop('temp_invoice', None)
         return ConversationHandler.END
         
@@ -344,11 +331,11 @@ async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "👨‍💻 *HƯỚNG DẪN SỬ DỤNG*\n\n"
-        "📸 *Gửi ảnh:* Gửi trực tiếp ảnh hóa đơn để trích xuất và lưu nháp.\n"
-        "🖊️ Dùng /expense [số tiền] [Tên] để nhập thủ công.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n"
-        "📜 /history: Xem lại 5 hóa đơn gần nhất bạn đã gửi.\n"
-        "❓ /help: Hiển thị bảng trợ giúp này."
+        "🚀 /start: Khởi động bot & tự động đăng ký hệ thống\n"
+        "❓ /help: Xem hướng dẫn sử dụng chi tiết\n"
+        "📜 /history: Xem 5 hóa đơn gần nhất của bạn\n"
+        "🖊️ /expense [số tiền] [Tên]: Nhập chi phí thủ công (VD: `/expense 50000 An trua`)\n"
+        "📸 *Gửi ảnh:* AI sẽ tự động phân tích, kiểm tra trùng lặp & lưu hóa đơn."
     )
     await update.message.reply_text(text, parse_mode="Markdown")
 
@@ -367,11 +354,19 @@ def main():
         """Thiết lập menu lệnh riêng biệt cho Admin và Nhân viên."""
         # Menu chung cho Nhân viên
         staff_commands = [
-            BotCommand("help",    "Hiển thị bảng hướng dẫn"),
-            BotCommand("history", "Xem lịch sử cá nhân"),
-            BotCommand("expense", "Nhập hóa đơn thủ công"),
+            BotCommand("start",   "Khởi động bot & tự động đăng ký hệ thống"),
+            BotCommand("help",    "Xem hướng dẫn sử dụng chi tiết"),
+            BotCommand("history", "Xem 5 hóa đơn gần nhất của bạn"),
+            BotCommand("expense", "Nhập chi phí thủ công"),
         ]
         await application.bot.set_my_commands(staff_commands, scope=BotCommandScopeDefault())
+        
+        # Xóa menu cũ dành riêng cho Admin (nếu có) để Admin cũng dùng chung menu mới
+        from telegram import BotCommandScopeChat
+        # Since we no longer use a specific ADMIN_ID, we can skip chat-specific menu deletion 
+        # or handle it if we have specific user IDs to clear.
+        pass
+            
         logger.info("Hệ thống menu đã được thiết lập.")
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).read_timeout(30).connect_timeout(30).build()

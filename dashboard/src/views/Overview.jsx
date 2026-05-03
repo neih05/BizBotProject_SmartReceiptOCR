@@ -4,10 +4,10 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { Wallet, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { departments, weeklyChartData, categoryPieData, formatCurrency } from '../mockData';
+import { departments, formatCurrency } from '../mockData';
 import { apiClient } from '../apiClient';
 
-const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6'];
+const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6', '#ef4444', '#ec4899', '#14b8a6'];
 const Overview = () => {
   const [chartTab, setChartTab] = useState('week');
   const [stats, setStats] = useState({
@@ -17,14 +17,20 @@ const Overview = () => {
     approved_month_value: 0,
     budget_warnings: 0
   });
+  const [charts, setCharts] = useState({ week: [], month: [], quarter: [], categories: [] });
 
-  const displayWeeklyData = weeklyChartData || [];
-  const displayCategoryData = categoryPieData || [];
+  const displayWeeklyData = charts[chartTab] || [];
+  const displayCategoryData = charts.categories || [];
 
   useEffect(() => {
     apiClient('/stats')
       .then(res => res.json())
       .then(data => setStats(data))
+      .catch(err => console.error(err));
+      
+    apiClient('/charts')
+      .then(res => res.json())
+      .then(data => setCharts(data))
       .catch(err => console.error(err));
   }, []);
 
@@ -131,9 +137,9 @@ const Overview = () => {
                   cursor={{fill: '#f8fafc'}}
                 />
                 <Legend iconType="circle" />
-                <Bar dataKey="Tiếp khách" stackId="a" fill="#3b82f6" radius={[0, 0, 4, 4]} />
-                <Bar dataKey="Văn phòng phẩm" stackId="a" fill="#f59e0b" />
-                <Bar dataKey="Di chuyển" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                {displayCategoryData.map((cat, index) => (
+                  <Bar key={cat.name} dataKey={cat.name} stackId="a" fill={COLORS[index % COLORS.length]} />
+                ))}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -154,7 +160,7 @@ const Overview = () => {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {categoryPieData.map((entry, index) => (
+                  {displayCategoryData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
