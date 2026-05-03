@@ -103,6 +103,11 @@ def count_user_invoices(user_id: int) -> int:
 
 def is_duplicate(store_name: str, date: str, total_amount: float, exclude_id: int = None) -> bool:
     """Kiểm tra xem hóa đơn đã tồn tại chưa (dựa trên store_name, date, total_amount)."""
+    ids = find_duplicate_ids(store_name, date, total_amount, exclude_id)
+    return len(ids) > 0
+
+def find_duplicate_ids(store_name: str, date: str, total_amount: float, exclude_id: int = None) -> list:
+    """Tìm các ID hóa đơn trùng lặp (cùng store_name, date, total_amount)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -117,9 +122,9 @@ def is_duplicate(store_name: str, date: str, total_amount: float, exclude_id: in
         params.append(exclude_id)
         
     cursor.execute(query, params)
-    row = cursor.fetchone()
+    rows = cursor.fetchall()
     conn.close()
-    return row is not None
+    return [row[0] for row in rows]
 
 def get_user(telegram_id: int) -> dict:
     conn = sqlite3.connect(DB_PATH)
