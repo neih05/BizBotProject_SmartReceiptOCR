@@ -5,6 +5,8 @@ import { formatCurrency, accounts, departments } from '../mockData';
 const InvoiceManagement = () => {
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // OCR Form State
   const [formData, setFormData] = useState({});
@@ -95,11 +97,27 @@ const InvoiceManagement = () => {
           <div className="flex space-x-3">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <input type="text" placeholder="Tìm kiếm hóa đơn..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm #Mã HĐ, tên..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" 
+              />
             </div>
-            <button className="flex items-center px-4 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium hover:bg-slate-50">
-              <Filter className="w-4 h-4 mr-2" /> Lọc
-            </button>
+            <div className="relative">
+              <Filter className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              <select 
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="pl-9 pr-8 py-2 border border-slate-200 bg-white rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chờ xử lý</option>
+                <option value="approved">Đã hạch toán</option>
+                <option value="rejected">Bị từ chối</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
@@ -122,7 +140,19 @@ const InvoiceManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invoices.map((inv) => (
+                {invoices
+                  .filter(inv => filterStatus === 'all' || inv.status === filterStatus)
+                  .filter(inv => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return (
+                      inv.id.toString().includes(query) ||
+                      (inv.sender_name && inv.sender_name.toLowerCase().includes(query)) ||
+                      (inv.store_name && inv.store_name.toLowerCase().includes(query)) ||
+                      (inv.user_id && inv.user_id.toString().includes(query))
+                    );
+                  })
+                  .map((inv) => (
                   <tr 
                     key={inv.id} 
                     className="hover:bg-blue-50 cursor-pointer group transition-colors"
