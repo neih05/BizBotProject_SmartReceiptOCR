@@ -108,6 +108,10 @@ class InvoiceUpdate(BaseModel):
     department: str = ""
     notes: str = ""
     totalAmount: float = 0
+    date: str = ""
+    supplierName: str = ""
+    taxCode: str = ""
+    invNo: str = ""
 
 @app.post("/api/invoices/{invoice_id}/status")
 async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate, current_user: str = Depends(get_current_user)):
@@ -130,13 +134,17 @@ async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate, cur
     current_raw['creditAccount'] = update_data.creditAccount
     current_raw['department'] = update_data.department
     current_raw['notes'] = update_data.notes
+    current_raw['date'] = update_data.date
+    current_raw['store_name'] = update_data.supplierName
+    current_raw['taxCode'] = update_data.taxCode
+    current_raw['invNo'] = update_data.invNo
     
-    # Update status, amount and raw_json
+    # Update status, amount, raw_json, date and store_name
     cursor.execute("""
         UPDATE invoices 
-        SET status = ?, total_amount = ?, raw_json = ? 
+        SET status = ?, total_amount = ?, raw_json = ?, date = ?, store_name = ?
         WHERE id = ?
-    """, (update_data.status, update_data.totalAmount, json.dumps(current_raw), invoice_id))
+    """, (update_data.status, update_data.totalAmount, json.dumps(current_raw), update_data.date, update_data.supplierName, invoice_id))
     conn.commit()
     conn.close()
     
@@ -292,14 +300,49 @@ def get_stats(current_user: str = Depends(get_current_user)):
     cursor.execute("SELECT SUM(total_amount) FROM invoices WHERE status = 'approved'")
     total_spent = cursor.fetchone()[0] or 0
     
+    cursor.execute("SELECT raw_json, total_amount FROM invoices WHERE status = 'approved'")
+    all_approved = cursor.fetchall()
+    
     conn.close()
+    
+    dept_spending = {
+        "Ban Giám đốc": 0,
+        "Hành chính Nhân sự": 0,
+        "Kế toán Tài chính": 0,
+        "Kinh doanh & Marketing": 0,
+        "Phòng Kỹ thuật": 0,
+        "Phòng Dự án": 0,
+        "Khác": 0
+    }
+    for inv in all_approved:
+        try:
+            ocr = json.loads(inv['raw_json'] or '{}')
+            d = ocr.get('department') or 'Khác'
+            if d in dept_spending:
+                dept_spending[d] += (inv['total_amount'] or 0)
+            else:
+                dept_spending["Khác"] += (inv['total_amount'] or 0)
+        except: pass
+        
+    budgets = [
+        {"name": "Ban Giám đốc", "spent": dept_spending["Ban Giám đốc"], "budget": 100000000},
+        {"name": "Hành chính Nhân sự", "spent": dept_spending["Hành chính Nhân sự"], "budget": 50000000},
+        {"name": "Kế toán Tài chính", "spent": dept_spending["Kế toán Tài chính"], "budget": 30000000},
+        {"name": "Kinh doanh & Marketing", "spent": dept_spending["Kinh doanh & Marketing"], "budget": 150000000},
+        {"name": "Phòng Kỹ thuật", "spent": dept_spending["Phòng Kỹ thuật"], "budget": 80000000},
+        {"name": "Phòng Dự án", "spent": dept_spending["Phòng Dự án"], "budget": 200000000},
+        {"name": "Khác", "spent": dept_spending["Khác"], "budget": 20000000}
+    ]
+    
+    warnings = sum(1 for d in budgets if d['spent'] > d['budget'] * 0.9)
     
     return {
         "total_spent_week": total_spent, 
         "pending_invoices": pending_count,
         "approved_month_count": month_stats[1] or 0,
         "approved_month_value": month_stats[0] or 0,
-        "budget_warnings": 0
+        "budget_warnings": warnings,
+        "departments": budgets
     }
 
 @app.get("/api/export")
@@ -437,9 +480,11 @@ def get_charts(current_user: str = Depends(get_current_user)):
             # Sort by actual date for DD/MM/YYYY
             keys = sorted(d_map.keys(), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))[-limit:]
         else:
-            # Monthly (MM/YYYY) and Quarterly (QX/YYYY) sort naturally with string sort if years are same
-            # but let's at least sort them
-            keys = sorted(d_map.keys())[-limit:]
+            # Sort MM/YYYY and QX/YYYY chronologically
+            def sort_key(k):
+                parts = k.split('/')
+                return (int(parts[1]), parts[0])
+            keys = sorted(d_map.keys(), key=sort_key)[-limit:]
         return [{"name": k, **d_map[k]} for k in keys]
 
     conn.close()

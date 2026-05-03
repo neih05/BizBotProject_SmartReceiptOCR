@@ -131,10 +131,10 @@ def find_duplicate_ids(store_name: str, date: str, total_amount: float, exclude_
     cursor = conn.cursor()
     
     query = """
-        SELECT id FROM invoices 
-        WHERE store_name = ? AND date = ? AND total_amount = ? AND status != 'rejected'
+        SELECT id, store_name FROM invoices 
+        WHERE date = ? AND total_amount = ? AND status != 'rejected'
     """
-    params = [store_name, date, total_amount]
+    params = [date, total_amount]
     
     if exclude_id is not None:
         query += " AND id != ?"
@@ -143,7 +143,15 @@ def find_duplicate_ids(store_name: str, date: str, total_amount: float, exclude_
     cursor.execute(query, params)
     rows = cursor.fetchall()
     conn.close()
-    return [row[0] for row in rows]
+    
+    dup_ids = []
+    target_store = store_name.strip().lower()
+    for row in rows:
+        db_store = row[1]
+        if db_store and db_store.strip().lower() == target_store:
+            dup_ids.append(row[0])
+            
+    return dup_ids
 
 def get_user(telegram_id: int) -> dict:
     conn = sqlite3.connect(DB_PATH)

@@ -9,6 +9,8 @@ const InvoiceManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
   
   // OCR Form State
   const [formData, setFormData] = useState({});
@@ -32,15 +34,16 @@ const InvoiceManagement = () => {
 
   const handleRowClick = (inv) => {
     setSelectedInvoice(inv);
+    setZoom(1);
+    setRotation(0);
     setFormData({
-      supplierName: inv.store_name || inv.ocr.taxCode || '',
-      taxCode: inv.ocr.taxCode || '',
-      invNo: inv.ocr.invNo || '',
+      supplierName: inv.store_name || inv.ocr?.taxCode || '',
+      taxCode: inv.ocr?.taxCode || '',
+      invNo: inv.ocr?.invNo || '',
       date: inv.date,
-      amount: inv.total_amount || 0,
-      taxAmount: inv.ocr.taxAmount || 0,
-      total: (inv.total_amount || 0) + (inv.ocr.taxAmount || 0),
-      category: inv.ocr.category || 'Tiếp khách',
+      subtotal: (inv.total_amount || 0) - (inv.ocr?.taxAmount || 0),
+      taxAmount: inv.ocr?.taxAmount || 0,
+      category: inv.ocr?.category || 'Tiếp khách',
       debitAccount: '642',
       creditAccount: '111',
       department: 'Hành chính',
@@ -61,7 +64,11 @@ const InvoiceManagement = () => {
           category: formData.category,
           department: formData.department,
           notes: formData.notes,
-          totalAmount: parseFloat(formData.amount) || 0
+          totalAmount: (parseFloat(formData.subtotal) || 0) + (parseFloat(formData.taxAmount) || 0),
+          date: formData.date,
+          supplierName: formData.supplierName,
+          taxCode: formData.taxCode,
+          invNo: formData.invNo
         })
       });
       if (res.ok) {
@@ -143,7 +150,7 @@ const InvoiceManagement = () => {
               <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Mã HĐ</th>
-                  <th className="px-4 py-3 font-semibold">Ngày nhận</th>
+                  <th className="px-4 py-3 font-semibold">Ngày chứng từ</th>
                   <th className="px-4 py-3 font-semibold">Người gửi</th>
                   <th className="px-4 py-3 font-semibold">Nhà cung cấp</th>
                   <th className="px-4 py-3 font-semibold">Danh mục</th>
@@ -175,7 +182,7 @@ const InvoiceManagement = () => {
                           className="hover:bg-blue-50 transition-colors group"
                         >
                           <td className="px-4 py-3 font-medium">#{inv.id}</td>
-                          <td className="px-4 py-3 text-slate-600">{inv.date}</td>
+                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{inv.date}</td>
                           <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
                           <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
                           <td className="px-4 py-3">
@@ -226,14 +233,19 @@ const InvoiceManagement = () => {
             {/* Split Left: Image Preview */}
             <div className="w-[60%] bg-slate-100 border border-slate-200 rounded-xl flex flex-col relative overflow-hidden">
               <div className="absolute top-4 right-4 flex space-x-2 z-10">
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomIn className="w-4 h-4" /></button>
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomOut className="w-4 h-4" /></button>
-                <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => z + 0.25)} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomIn className="w-4 h-4" /></button>
+                <button onClick={() => setZoom(z => Math.max(0.25, z - 0.25))} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomOut className="w-4 h-4" /></button>
+                <button onClick={() => setRotation(r => r + 90)} className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
               </div>
               <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
                 <div className="bg-white shadow-lg w-full max-w-md h-full rounded flex flex-col items-center justify-center border border-slate-200 overflow-hidden">
                   {selectedInvoice.ocr?.file_id ? (
-                    <img src={`http://127.0.0.1:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} alt="Invoice" className="w-full h-full object-contain" />
+                    <img 
+                      src={`http://127.0.0.1:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} 
+                      alt="Invoice" 
+                      className="w-full h-full object-contain transition-transform duration-200" 
+                      style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
+                    />
                   ) : (
                     <>
                       <FileImage className="w-16 h-16 text-slate-300 mb-4" />
@@ -299,7 +311,7 @@ const InvoiceManagement = () => {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tổng tiền chưa VAT</span>
-                        <input type="text" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
+                        <input type="text" value={formData.subtotal} onChange={e => setFormData({...formData, subtotal: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-32 px-3 py-1.5 border border-slate-200 rounded-md text-sm text-right focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`} />
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-slate-600">Tiền thuế GTGT</span>
@@ -307,7 +319,7 @@ const InvoiceManagement = () => {
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-slate-100">
                         <span className="text-sm font-bold text-navy-900">Tổng cộng thanh toán</span>
-                        <span className="text-lg font-bold text-blue-600">{formatCurrency(formData.total)}</span>
+                        <span className="text-lg font-bold text-blue-600">{formatCurrency((parseFloat(formData.subtotal) || 0) + (parseFloat(formData.taxAmount) || 0))}</span>
                       </div>
                     </div>
                   </div>

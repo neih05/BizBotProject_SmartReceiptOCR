@@ -259,6 +259,12 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data["store_name"] = store_name
     user_data["category"] = category
     
+    date_str = user_data.get("date", datetime.now().strftime("%d/%m/%Y"))
+    dup_ids = find_duplicate_ids(store_name, date_str, amount)
+    is_dup = len(dup_ids) > 0
+    user_data["is_suspicious_duplicate"] = is_dup
+    user_data["duplicate_of_ids"] = dup_ids
+    
     invoice_id = save_invoice(user_id, user_data, status='pending')
     
     await update.message.reply_text(
@@ -309,21 +315,40 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Số tiền không hợp lệ.")
         return
 
-    store_name = " ".join(args[1:])
-    category = categorize_text(store_name)
+    import re
+    date_str = None
+    store_name_parts = args[1:]
+    if store_name_parts:
+        date_match = re.match(r"^(\d{1,2})/(\d{1,2})(?:/(\d{4}))?$", store_name_parts[0])
+        if date_match:
+            d, m, y = date_match.groups()
+            if not y:
+                y = datetime.now().year
+            date_str = f"{int(d):02d}/{int(m):02d}/{y}"
+            store_name_parts = store_name_parts[1:]
+            
+    if not date_str:
+        date_str = datetime.now().strftime("%d/%m/%Y")
 
-    today_str = datetime.now().strftime("%d/%m/%Y")
+    store_name = " ".join(store_name_parts)
+    if not store_name:
+        await update.message.reply_text("Cần nhập tên cửa hàng.")
+        return
+
+    category = categorize_text(store_name)
     
-    is_dup = is_duplicate(store_name, today_str, amount)
+    dup_ids = find_duplicate_ids(store_name, date_str, amount)
+    is_dup = len(dup_ids) > 0
 
     data = {
         "is_invoice": True,
         "store_name": store_name,
-        "date": today_str,
+        "date": date_str,
         "items": [],
         "total_amount": amount,
         "category": category,
-        "is_suspicious_duplicate": is_dup
+        "is_suspicious_duplicate": is_dup,
+        "duplicate_of_ids": dup_ids
     }
 
     # Queue instantly
