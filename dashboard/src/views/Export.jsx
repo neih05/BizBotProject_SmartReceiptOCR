@@ -214,10 +214,10 @@ const Export = () => {
             <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3 font-semibold">Mã HĐ</th>
-                <th className="px-6 py-3 font-semibold">Ngày</th>
+                <th className="px-6 py-3 font-semibold">Ngày chứng từ</th>
                 <th className="px-6 py-3 font-semibold">Người gửi</th>
                 <th className="px-6 py-3 font-semibold">Nhà cung cấp</th>
-                <th className="px-6 py-3 font-semibold">Loại CP</th>
+                <th className="px-6 py-3 font-semibold">Danh mục</th>
                 <th className="px-6 py-3 font-semibold text-right">Thành tiền</th>
               </tr>
             </thead>
