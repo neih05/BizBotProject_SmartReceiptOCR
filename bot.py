@@ -93,8 +93,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Xin chào {name}!\n\n"
         "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
         "📋 Dùng /history để xem 5 hóa đơn gần nhất.\n"
-        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] - [Danh_mục] để nhập tay.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] để nhập tay.\n"
+        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
         parse_mode="Markdown"
     )
 
