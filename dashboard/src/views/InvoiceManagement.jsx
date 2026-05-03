@@ -137,7 +137,6 @@ const InvoiceManagement = () => {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 w-10"><input type="checkbox" className="rounded text-blue-600" /></th>
                   <th className="px-4 py-3 font-semibold">Mã HĐ</th>
                   <th className="px-4 py-3 font-semibold">Ngày nhận</th>
                   <th className="px-4 py-3 font-semibold">Người gửi</th>
@@ -164,10 +163,8 @@ const InvoiceManagement = () => {
                   .map((inv) => (
                   <tr 
                     key={inv.id} 
-                    className="hover:bg-blue-50 cursor-pointer group transition-colors"
-                    onClick={() => handleRowClick(inv)}
+                    className="hover:bg-blue-50 transition-colors group"
                   >
-                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}><input type="checkbox" className="rounded text-blue-600" /></td>
                     <td className="px-4 py-3 font-medium">#{inv.id}</td>
                     <td className="px-4 py-3 text-slate-600">{inv.date}</td>
                     <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
@@ -189,7 +186,11 @@ const InvoiceManagement = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-md opacity-0 group-hover:opacity-100 transition-all">
+                      <button 
+                        onClick={() => handleRowClick(inv)}
+                        className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-all"
+                        title="Xem chi tiết"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                     </td>
