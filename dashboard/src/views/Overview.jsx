@@ -188,11 +188,11 @@ const Overview = () => {
       {/* Budget Warnings Table */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="text-lg font-bold text-navy-900">Cảnh báo ngân sách phòng ban (Mô phỏng)</h3>
+          <h3 className="text-lg font-bold text-navy-900">Cảnh báo ngân sách phòng ban</h3>
         </div>
         <div className="p-6">
           <div className="space-y-6">
-            {departments.map((dept, idx) => {
+            {(stats.departments || []).map((dept, idx) => {
               const percent = (dept.spent / dept.budget) * 100;
               let barColor = 'bg-emerald-500';
               if (percent > 90) barColor = 'bg-red-500';
