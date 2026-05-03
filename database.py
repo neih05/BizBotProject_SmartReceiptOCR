@@ -140,6 +140,15 @@ def get_employee_by_nickname(nickname: str) -> dict:
     conn.close()
     return dict(row) if row else None
 
+def get_employee_by_id(telegram_id_str: str) -> dict:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM employees WHERE employee_id = ?", (telegram_id_str,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
 def save_user(telegram_id: int, full_name: str, company_code: str, role: str, is_verified: bool = False):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()

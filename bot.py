@@ -19,7 +19,7 @@ from database import (
     init_db, save_invoice, get_history, count_user_invoices, is_duplicate,
     get_user, save_user, update_user_status, get_pending_invoices,
     update_invoice_status, get_approved_invoices_for_report, get_users_with_stats,
-    get_all_invoices_for_export, get_daily_report, get_employee_by_nickname
+    get_all_invoices_for_export, get_daily_report, get_employee_by_nickname, get_employee_by_id
 )
 from gemini_handler import setup_gemini, extract_invoice
 from formatter import format_invoice, format_history
@@ -55,10 +55,23 @@ WAIT_PHOTO_EDIT = 4
 # ── Middleware kiểm tra User ──────────────────────────────────────────────────
 async def check_user_verified(update: Update) -> bool:
     user_id = update.effective_user.id
+    
+    # Check against employees table using telegram_id (stored in employee_id)
+    emp = get_employee_by_id(str(user_id))
+    if not emp:
+        await update.message.reply_text(
+            f"⛔ *Truy cập bị từ chối*\n"
+            f"Bạn chưa được cấp quyền truy cập hệ thống.\n"
+            f"Vui lòng gửi mã ID này cho Kế toán để được thêm vào danh sách nhân viên:\n"
+            f"`{user_id}`",
+            parse_mode="Markdown"
+        )
+        return False
+
     user = get_user(user_id)
     if not user:
-        name = update.effective_user.full_name or "Unknown"
-        save_user(user_id, name, "DEFAULT_COMPANY", "staff", True)
+        # Use real name from employees table
+        save_user(user_id, emp["real_name"], "DEFAULT_COMPANY", "staff", True)
     return True
 
 # ── Handlers Chào Mừng & Xác Thực ─────────────────────────────────────────────
@@ -76,8 +89,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Xin chào {name}!\n\n"
         "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
         "📋 Dùng /history để xem 5 hóa đơn gần nhất.\n"
-        "✏️ Dùng /expense [số tiền] [Tên] - [Danh mục] để nhập tay.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] để nhập tay.\n"
+        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
         parse_mode="Markdown"
     )
 
@@ -105,6 +118,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return ConversationHandler.END
 
         # Lưu thông tin tạm
+        data['file_id'] = photo.file_id
         context.user_data['temp_invoice'] = data
 
         # Check trùng
@@ -121,16 +135,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         category_str = data.get("category") or "Khác"
         
         if is_dup:
-            result_text = "⚠️ *Hóa đơn này có vẻ đã được gửi trước đó trên hệ thống. Vui lòng kiểm tra lại.*\n\n" + result_text
-            
-        result_text += f"\n\nDanh mục: {category_str}. Xác nhận?"
-
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Xác nhận đúng", callback_data="confirm_correct"),
-                InlineKeyboardButton("✏️ Chỉnh sửa", callback_data="edit_invoice")
+            result_text = "⚠️ *CẢNH BÁO TRÙNG LẶP*\nHệ thống phát hiện hóa đơn này (cùng cửa hàng, cùng ngày, cùng số tiền) có vẻ đã được gửi trước đó. Kế toán sẽ kiểm tra kỹ hóa đơn này!\n\n" + result_text
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Dù trùng nhưng vẫn lưu", callback_data="confirm_correct"),
+                    InlineKeyboardButton("✏️ Chỉnh sửa", callback_data="edit_invoice")
+                ]
             ]
-        ]
+        else:
+            result_text += f"\n\nDanh mục dự đoán: {category_str}. Xác nhận?"
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Xác nhận đúng", callback_data="confirm_correct"),
+                    InlineKeyboardButton("✏️ Chỉnh sửa", callback_data="edit_invoice")
+                ]
+            ]
         
         await processing_msg.edit_text(result_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
         return WAIT_PHOTO_CONFIRM
@@ -191,9 +210,8 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
     elif data == "edit_invoice":
         await query.edit_message_text(
             f"{query.message.text}\n\nBạn hãy gõ lại thông tin theo cú pháp sau:\n"
-            "`/expense [Số tiền] [Tên cửa hàng] - [Danh mục]`\n"
-            "(Tên cửa hàng và Danh mục là không bắt buộc)\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+            "`/expense [Số tiền] [Tên cửa hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
             parse_mode="Markdown"
         )
         return WAIT_PHOTO_EDIT
@@ -209,24 +227,19 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
     if text.startswith("/expense "):
         raw_args = text[9:].strip()
-        if " - " in raw_args:
-            main_part, category = raw_args.split(" - ", 1)
-        else:
-            main_part = raw_args
-            category = user_data.get("category", "Khác")
-            
-        args = main_part.split()
+        args = raw_args.split()
         if len(args) < 1:
             await update.message.reply_text(
                 "❌ Cú pháp không hợp lệ. Vui lòng gõ lại theo định dạng:\n"
-                "`/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
-                "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
+                "`/expense [Số tiền] [Tên_cửa_hàng]`\n"
+                "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
                 parse_mode="Markdown"
             )
             return WAIT_PHOTO_EDIT
             
         amount_str = args[0]
         store_name = " ".join(args[1:]) if len(args) > 1 else user_data.get("store_name", "Không rõ")
+        category = user_data.get("category", "Không phân loại")
     else:
         amount_str = text
         store_name = user_data.get("store_name", "Không rõ")
@@ -247,7 +260,7 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await update.message.reply_text(
         f"✅ *Đã lưu thành công bản cập nhật!*\n"
-        f"Mã hóa đơn chờ duyệt: #{invoice_id}\nCửa hàng: {store_name}\nDanh mục: {category}\nSố tiền mới: {amount:,.0f} đ",
+        f"Mã hóa đơn chờ duyệt: #{invoice_id}\nCửa hàng: {store_name}\nSố tiền mới: {amount:,.0f} đ",
         parse_mode="Markdown"
     )
     context.user_data.pop('temp_invoice', None)
@@ -270,24 +283,17 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not raw_args:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n"
-            "(Danh mục không bắt buộc)", 
+            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n",
             parse_mode="Markdown"
         )
         return
 
-    if " - " in raw_args:
-        main_part, category = raw_args.split(" - ", 1)
-    else:
-        main_part = raw_args
-        category = "Khác"
-
-    args = main_part.split()
+    args = raw_args.split()
     if len(args) < 2:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n"
+            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n"
             "(Cần tối thiểu số tiền và tên cửa hàng)", 
             parse_mode="Markdown"
         )
@@ -302,6 +308,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     store_name = " ".join(args[1:])
     today_str = datetime.now().strftime("%d/%m/%Y")
+    
+    is_dup = is_duplicate(store_name, today_str, amount)
 
     data = {
         "is_invoice": True,
@@ -309,17 +317,19 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "date": today_str,
         "items": [],
         "total_amount": amount,
-        "category": category
+        "category": "Không phân loại",
+        "is_suspicious_duplicate": is_dup
     }
 
     # Queue instantly
     invoice_id = save_invoice(user_id, data, status='pending')
 
-    await update.message.reply_text(
-        f"✅ *Đã lưu hóa đơn thủ công vào bản nháp chờ duyệt*\n"
-        f"Mã hóa đơn: #{invoice_id}\nCửa hàng: {store_name}\nDanh mục: {category}\nSố tiền: {amount:,.0f} đ",
-        parse_mode="Markdown"
-    )
+    msg = f"✅ *Đã lưu hóa đơn thủ công vào bản nháp chờ duyệt*\n"
+    if is_dup:
+        msg = f"⚠️ *Cảnh báo:* Hóa đơn này có dấu hiệu trùng lặp nhưng vẫn được lưu. Kế toán sẽ kiểm tra lại.\n\n" + msg
+    msg += f"Mã hóa đơn: #{invoice_id}\nCửa hàng: {store_name}\nSố tiền: {amount:,.0f} đ"
+
+    await update.message.reply_text(msg, parse_mode="Markdown")
 
 async def cmd_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_user_verified(update):
@@ -333,8 +343,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "👨‍💻 *HƯỚNG DẪN SỬ DỤNG*\n\n"
         "📸 *Gửi ảnh:* Gửi trực tiếp ảnh hóa đơn để trích xuất và lưu nháp.\n"
-        "🖊️ Dùng /expense [số tiền] [Tên] - [Danh mục] để nhập thủ công.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n"
+        "🖊️ Dùng /expense [số tiền] [Tên] để nhập thủ công.\n"
+        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n"
         "📜 /history: Xem lại 5 hóa đơn gần nhất bạn đã gửi.\n"
         "❓ /help: Hiển thị bảng trợ giúp này."
     )

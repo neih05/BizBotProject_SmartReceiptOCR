@@ -144,6 +144,23 @@ def get_employees():
         
     return result
 
+@app.get("/api/telegram-image/{file_id}")
+async def get_telegram_image(file_id: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={file_id}"
+    async with httpx.AsyncClient() as client:
+        try:
+            res = await client.get(url)
+            if res.status_code == 200:
+                file_path = res.json()["result"]["file_path"]
+                img_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
+                img_res = await client.get(img_url)
+                from fastapi.responses import Response
+                return Response(content=img_res.content, media_type="image/jpeg")
+        except Exception as e:
+            print(f"Error fetching telegram image: {e}")
+            
+    raise HTTPException(status_code=404, detail="Image not found")
+
 @app.get("/api/stats")
 def get_stats():
     conn = get_db()

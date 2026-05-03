@@ -67,6 +67,14 @@ export const departments = [
   { name: 'Kế toán', budget: 10000000, spent: 5000000, status: 'safe' }
 ];
 
+export const expenseTags = [
+  { id: 1, name: 'Tiếp khách', usageCount: 45, description: 'Chi phí tiếp đãi khách hàng, đối tác' },
+  { id: 2, name: 'Văn phòng phẩm', usageCount: 20, description: 'Giấy, bút, đồ dùng văn phòng' },
+  { id: 3, name: 'Di chuyển', usageCount: 68, description: 'Taxi, Grab, xăng xe công tác' },
+  { id: 4, name: 'Công tác phí', usageCount: 12, description: 'Khách sạn, vé máy bay đi công tác' },
+  { id: 5, name: 'Khác', usageCount: 5, description: 'Các chi phí không phân loại được' },
+];
+
 export const weeklyChartData = [
   { name: 'Tuần 1', 'Tiếp khách': 4000000, 'Văn phòng phẩm': 2400000, 'Di chuyển': 2400000 },
   { name: 'Tuần 2', 'Tiếp khách': 3000000, 'Văn phòng phẩm': 1398000, 'Di chuyển': 2210000 },

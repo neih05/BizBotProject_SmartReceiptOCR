@@ -164,11 +164,17 @@ const InvoiceManagement = () => {
                 <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><ZoomOut className="w-4 h-4" /></button>
                 <button className="p-2 bg-white/90 shadow-sm rounded-lg hover:bg-white text-slate-700"><RotateCw className="w-4 h-4" /></button>
               </div>
-              <div className="flex-1 flex items-center justify-center p-8">
-                <div className="bg-white shadow-lg w-full max-w-md h-[600px] rounded flex flex-col items-center justify-center border border-slate-200">
-                  <FileImage className="w-16 h-16 text-slate-300 mb-4" />
-                  <p className="text-slate-500 font-medium">Ảnh hóa đơn sẽ được load từ file_id</p>
-                  <p className="text-sm text-slate-400 mt-2">ID: {selectedInvoice.id}</p>
+              <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
+                <div className="bg-white shadow-lg w-full max-w-md h-full rounded flex flex-col items-center justify-center border border-slate-200 overflow-hidden">
+                  {selectedInvoice.ocr?.file_id ? (
+                    <img src={`http://localhost:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} alt="Invoice" className="w-full h-full object-contain" />
+                  ) : (
+                    <>
+                      <FileImage className="w-16 h-16 text-slate-300 mb-4" />
+                      <p className="text-slate-500 font-medium">Không có ảnh đính kèm (Nhập tay)</p>
+                      <p className="text-sm text-slate-400 mt-2">ID: {selectedInvoice.id}</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
