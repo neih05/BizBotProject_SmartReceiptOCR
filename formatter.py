@@ -12,7 +12,6 @@ def format_invoice(data: dict) -> str:
     
     lines.append(f"🏪 *Cửa hàng:* {store}")
     lines.append(f"📅 *Ngày:*      {date}")
-    lines.append(f"🏷️ *Danh mục:*  {category}")
     lines.append("")
 
     items = data.get("items", [])
