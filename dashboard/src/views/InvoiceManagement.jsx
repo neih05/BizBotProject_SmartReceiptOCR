@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
-import { formatCurrency, accounts, departments } from '../mockData';
-import { apiClient } from '../apiClient';
 import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
 import { formatCurrency, accounts, departments, expenseTags } from '../mockData';
+import { apiClient } from '../apiClient';
 
 const InvoiceManagement = () => {
   const [invoices, setInvoices] = useState([]);

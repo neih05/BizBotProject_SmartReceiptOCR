@@ -79,9 +79,9 @@ def get_invoices(current_user: str = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT i.*, u.full_name as sender_name 
+        SELECT i.*, e.real_name as sender_name 
         FROM invoices i 
-        LEFT JOIN users u ON i.user_id = u.telegram_id
+        LEFT JOIN employees e ON CAST(i.user_id AS TEXT) = e.employee_id
         ORDER BY i.id DESC
     """)
     rows = cursor.fetchall()
