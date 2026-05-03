@@ -1,17 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet, FileText, Filter, Calendar } from 'lucide-react';
-import { invoices, formatCurrency } from '../mockData';
+import { formatCurrency } from '../mockData';
+import { apiClient } from '../apiClient';
 
 const Export = () => {
+  const [invoices, setInvoices] = useState([]);
   const [filter, setFilter] = useState({
     dateRange: 'Tháng này',
     department: 'Tất cả',
     status: 'Đã hạch toán'
   });
 
-  const handleExport = (type) => {
-    alert(`Đã xuất báo cáo dưới định dạng ${type}. File sẽ tự động tải xuống.`);
+  useEffect(() => {
+    apiClient('/invoices')
+      .then(res => res.json())
+      .then(data => setInvoices(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  const handleExport = async (type) => {
+    try {
+      const endpoint = type === 'Excel' ? '/export-excel' : '/export';
+      const extension = type === 'Excel' ? 'xlsx' : 'csv';
+      const response = await apiClient(endpoint);
+      
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bao_cao_chi_phi_${new Date().getTime()}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Lỗi khi tải file:', error);
+      alert('Có lỗi xảy ra khi xuất báo cáo.');
+    }
   };
+
+  const approvedInvoices = invoices.filter(i => i.status === 'approved');
 
   return (
     <div className="space-y-6">
@@ -32,10 +62,10 @@ const Export = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">Khoảng thời gian</label>
             <div className="relative">
               <Calendar className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-              <select className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white">
+              <select className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white" defaultValue="Tháng này">
                 <option>Hôm nay</option>
                 <option>Tuần này</option>
-                <option selected>Tháng này</option>
+                <option>Tháng này</option>
                 <option>Quý này</option>
                 <option>Tùy chọn...</option>
               </select>
@@ -43,7 +73,7 @@ const Export = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Phòng ban</label>
-            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white">
+            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white" defaultValue="Tất cả phòng ban">
               <option>Tất cả phòng ban</option>
               <option>Hành chính</option>
               <option>Sales</option>
@@ -53,15 +83,15 @@ const Export = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Trạng thái</label>
-            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white">
+            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 bg-white" defaultValue="Đã hạch toán">
               <option>Tất cả trạng thái</option>
-              <option selected>Đã hạch toán</option>
+              <option>Đã hạch toán</option>
               <option>Chờ xử lý</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Khoảng tiền</label>
-            <input type="range" className="w-full" min="0" max="100000000" />
+            <input type="range" className="w-full" min="0" max="100000000" defaultValue="0" />
             <div className="flex justify-between text-xs text-slate-500 mt-1">
               <span>0đ</span>
               <span>100.000.000đ+</span>
@@ -87,7 +117,7 @@ const Export = () => {
         <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
           <h3 className="font-bold text-navy-900">Xem trước kết quả lọc (Mẫu 5 dòng)</h3>
           <span className="text-sm text-slate-500">
-            Tổng cộng: {formatCurrency(invoices.filter(i => i.status === 'approved').reduce((sum, inv) => sum + (inv.amount || 0), 0))}
+            Tổng cộng: {formatCurrency(approvedInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0))}
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -103,16 +133,23 @@ const Export = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {invoices.filter(i => i.status === 'approved').slice(0, 5).map(inv => (
+              {approvedInvoices.slice(0, 5).map(inv => (
                 <tr key={inv.id}>
                   <td className="px-6 py-3 font-medium text-navy-900">{inv.id}</td>
                   <td className="px-6 py-3 text-slate-600">{inv.date}</td>
-                  <td className="px-6 py-3 text-slate-700">{inv.sender}</td>
-                  <td className="px-6 py-3 text-slate-700">{inv.supplier}</td>
-                  <td className="px-6 py-3 text-slate-500">{inv.ocr.category}</td>
-                  <td className="px-6 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.amount)}</td>
+                  <td className="px-6 py-3 text-slate-700">{inv.sender_name || inv.user_id}</td>
+                  <td className="px-6 py-3 text-slate-700">{inv.store_name}</td>
+                  <td className="px-6 py-3 text-slate-500">{inv.ocr?.category || 'Khác'}</td>
+                  <td className="px-6 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.total_amount || 0)}</td>
                 </tr>
               ))}
+              {approvedInvoices.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
+                    Chưa có hóa đơn nào phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

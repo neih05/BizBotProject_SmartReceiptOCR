@@ -2,6 +2,9 @@ import os
 import sqlite3
 import json
 import hashlib
+import csv
+import io
+import pandas as pd
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -262,3 +265,178 @@ def get_stats(current_user: str = Depends(get_current_user)):
         "approved_month_value": month_stats[0] or 0,
         "budget_warnings": 0
     }
+
+@app.get("/api/export")
+def export_csv(current_user: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT i.*, e.real_name as sender_name 
+        FROM invoices i 
+        LEFT JOIN employees e ON CAST(i.user_id AS TEXT) = e.employee_id
+        ORDER BY i.id DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Mã HĐ', 'Ngày', 'Người gửi', 'Nhà cung cấp', 'Mã số thuế', 'Số hóa đơn', 'Loại CP', 'Thành tiền', 'Trạng thái', 'Ghi chú'])
+
+    for row in rows:
+        r = dict(row)
+        try:
+            ocr_data = json.loads(r.get('raw_json') or '{}')
+        except:
+            ocr_data = {}
+        
+        writer.writerow([
+            r['id'],
+            r['date'],
+            r.get('sender_name') or r['user_id'],
+            r['store_name'],
+            ocr_data.get('taxCode', ''),
+            ocr_data.get('invNo', ''),
+            ocr_data.get('category', ''),
+            r['total_amount'],
+            r['status'],
+            ocr_data.get('notes', '')
+        ])
+    
+    csv_content = "\ufeff" + output.getvalue()  # Add BOM for Excel UTF-8
+    
+    from fastapi.responses import Response
+    return Response(
+        content=csv_content.encode('utf-8'),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=bao_cao_chi_phi.csv"}
+    )
+
+@app.get("/api/charts")
+def get_charts(current_user: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 1. Pie chart
+    cursor.execute("SELECT raw_json, total_amount FROM invoices WHERE status = 'approved'")
+    approved_invoices = cursor.fetchall()
+    category_totals = {}
+    for inv in approved_invoices:
+        try:
+            ocr = json.loads(inv['raw_json'] or '{}')
+            cat = ocr.get('category') or 'Khác'
+            if not cat: cat = 'Khác'
+            category_totals[cat] = category_totals.get(cat, 0) + (inv['total_amount'] or 0)
+        except: pass
+    pie_data = [{"name": k, "value": v} for k, v in category_totals.items() if v > 0]
+    
+    # 2. Bar chart data aggregations
+    cursor.execute("SELECT date, raw_json, total_amount FROM invoices WHERE status = 'approved'")
+    all_approved = cursor.fetchall()
+    
+    day_map = {}
+    month_map = {}
+    quarter_map = {}
+    
+    for inv in all_approved:
+        date_str = inv['date']
+        if not date_str or '/' not in date_str: continue
+        amount = inv['total_amount'] or 0
+        try:
+            ocr = json.loads(inv['raw_json'] or '{}')
+            cat = ocr.get('category') or 'Khác'
+            if not cat: cat = 'Khác'
+            
+            # Day level
+            if date_str not in day_map: day_map[date_str] = {}
+            day_map[date_str][cat] = day_map[date_str].get(cat, 0) + amount
+            
+            # Month level (DD/MM/YYYY -> MM/YYYY)
+            parts = date_str.split('/')
+            if len(parts) == 3:
+                m_key = f"{parts[1]}/{parts[2]}"
+                if m_key not in month_map: month_map[m_key] = {}
+                month_map[m_key][cat] = month_map[m_key].get(cat, 0) + amount
+                
+                # Quarter level
+                q = (int(parts[1]) - 1) // 3 + 1
+                q_key = f"Q{q}/{parts[2]}"
+                if q_key not in quarter_map: quarter_map[q_key] = {}
+                quarter_map[q_key][cat] = quarter_map[q_key].get(cat, 0) + amount
+        except: pass
+
+    def to_chart_list(d_map, limit, is_date=False):
+        if is_date:
+            # Sort by actual date for DD/MM/YYYY
+            keys = sorted(d_map.keys(), key=lambda x: datetime.strptime(x, "%d/%m/%Y"))[-limit:]
+        else:
+            # Monthly (MM/YYYY) and Quarterly (QX/YYYY) sort naturally with string sort if years are same
+            # but let's at least sort them
+            keys = sorted(d_map.keys())[-limit:]
+        return [{"name": k, **d_map[k]} for k in keys]
+
+    conn.close()
+    return {
+        "week": to_chart_list(day_map, 7, is_date=True),
+        "month": to_chart_list(month_map, 6),
+        "quarter": to_chart_list(quarter_map, 4),
+        "categories": pie_data
+    }
+
+@app.get("/api/export-excel")
+def export_excel(current_user: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT i.id, i.date, e.real_name as sender_name, 
+               i.store_name, i.total_amount, i.status, i.raw_json
+        FROM invoices i 
+        LEFT JOIN employees e ON CAST(i.user_id AS TEXT) = e.employee_id
+        ORDER BY i.id DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    data = []
+    for r in rows:
+        row_dict = dict(r)
+        try:
+            ocr = json.loads(row_dict.pop('raw_json') or '{}')
+            row_dict['category'] = ocr.get('category', 'Khác')
+            row_dict['notes'] = ocr.get('notes', '')
+        except:
+            row_dict['category'] = 'Khác'
+            row_dict['notes'] = ''
+        data.append(row_dict)
+        
+    df = pd.DataFrame(data)
+    
+    # Rename columns for display
+    column_mapping = {
+        'id': 'Mã HĐ',
+        'date': 'Ngày',
+        'sender_name': 'Người gửi',
+        'store_name': 'Nhà cung cấp',
+        'category': 'Loại CP',
+        'total_amount': 'Thành tiền',
+        'status': 'Trạng thái',
+        'notes': 'Ghi chú'
+    }
+    df = df.rename(columns=column_mapping)
+    
+    # Ensure correct column order
+    cols = ['Mã HĐ', 'Ngày', 'Người gửi', 'Nhà cung cấp', 'Loại CP', 'Thành tiền', 'Trạng thái', 'Ghi chú']
+    df = df[cols]
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Báo cáo chi phí')
+    
+    output.seek(0)
+    
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=bao_cao_chi_phi.xlsx"}
+    )
