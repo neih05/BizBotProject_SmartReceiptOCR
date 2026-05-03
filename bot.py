@@ -80,6 +80,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user:
         save_user(user_id, name, "DEFAULT_COMPANY", "staff", True)
 
+    # Cleanup any old user-specific command menus to force fallback to default
+    from telegram import BotCommandScopeChat
+    try:
+        await context.bot.delete_my_commands(scope=BotCommandScopeChat(chat_id=user_id))
+    except:
+        pass
+
     await update.message.reply_text(
         f"👋 Xin chào {name}!\n\n"
         "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
