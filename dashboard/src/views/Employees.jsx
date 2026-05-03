@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserPlus, Search, ShieldCheck, ShieldAlert, History, X, Loader2 } from 'lucide-react';
 import { formatCurrency } from '../mockData';
+import { apiClient } from '../apiClient';
 
 const Employees = () => {
   const [employeesData, setEmployeesData] = useState([]);
@@ -10,7 +11,7 @@ const Employees = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchEmployees = () => {
-    fetch('http://localhost:8000/api/employees')
+    apiClient('/employees')
       .then(res => res.json())
       .then(data => setEmployeesData(data))
       .catch(err => console.error(err));
@@ -36,9 +37,8 @@ const Employees = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('http://localhost:8000/api/employees', {
+      const res = await apiClient('/employees', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
 

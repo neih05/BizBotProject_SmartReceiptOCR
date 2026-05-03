@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { formatCurrency, accounts, departments } from '../mockData';
+import { apiClient } from '../apiClient';
 import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
 import { formatCurrency, accounts, departments, expenseTags } from '../mockData';
 
@@ -13,7 +16,7 @@ const InvoiceManagement = () => {
 
   const fetchInvoices = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/invoices');
+      const res = await apiClient('/invoices');
       const data = await res.json();
       setInvoices(data);
     } catch (err) {
@@ -47,9 +50,8 @@ const InvoiceManagement = () => {
 
   const handleAction = async (status) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/invoices/${selectedInvoice.id}/status`, {
+      const res = await apiClient(`/invoices/${selectedInvoice.id}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: status,
           debitAccount: formData.debitAccount,
@@ -212,7 +214,7 @@ const InvoiceManagement = () => {
               <div className="flex-1 flex items-center justify-center p-8 overflow-hidden">
                 <div className="bg-white shadow-lg w-full max-w-md h-full rounded flex flex-col items-center justify-center border border-slate-200 overflow-hidden">
                   {selectedInvoice.ocr?.file_id ? (
-                    <img src={`http://localhost:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} alt="Invoice" className="w-full h-full object-contain" />
+                    <img src={`http://127.0.0.1:8000/api/telegram-image/${selectedInvoice.ocr.file_id}`} alt="Invoice" className="w-full h-full object-contain" />
                   ) : (
                     <>
                       <FileImage className="w-16 h-16 text-slate-300 mb-4" />

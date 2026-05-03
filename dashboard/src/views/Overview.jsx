@@ -4,7 +4,8 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { Wallet, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { departments, formatCurrency } from '../mockData';
+import { departments, weeklyChartData, categoryPieData, formatCurrency } from '../mockData';
+import { apiClient } from '../apiClient';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6'];
 const weeklyChartData = [];
@@ -21,7 +22,7 @@ const Overview = () => {
   });
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/stats')
+    apiClient('/stats')
       .then(res => res.json())
       .then(data => setStats(data))
       .catch(err => console.error(err));
