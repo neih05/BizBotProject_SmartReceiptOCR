@@ -74,6 +74,9 @@ async def check_user_verified(update: Update) -> bool:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh /start."""
+    if not await check_user_verified(update):
+        return
+        
     user_id = update.effective_user.id
     name = update.effective_user.full_name or "Unknown"
     
