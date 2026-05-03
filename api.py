@@ -191,6 +191,7 @@ def get_employees(current_user: str = Depends(get_current_user)):
         e_dict = dict(e)
         tid = str(e_dict['employee_id'])
         stats = stats_map.get(tid, {})
+        is_active = e_dict.get('is_active', 1)
         
         result.append({
             "id": e_dict['id'],
@@ -199,7 +200,8 @@ def get_employees(current_user: str = Depends(get_current_user)):
             "department": "Hành chính",
             "invoicesSent": stats.get('invoice_count', 0),
             "totalValue": stats.get('total_value', 0) or 0,
-            "status": "approved"
+            "status": "approved" if is_active else "disabled",
+            "isActive": bool(is_active)
         })
         
     return result
@@ -224,6 +226,40 @@ def add_employee(emp: EmployeeCreate, current_user: str = Depends(get_current_us
     conn.close()
     
     return {"success": True, "id": new_id, "message": "Thêm nhân viên thành công"}
+
+
+class EmployeeStatusUpdate(BaseModel):
+    is_active: bool
+
+@app.put("/api/employees/{employee_id}/status")
+async def update_employee_status(employee_id: int, update: EmployeeStatusUpdate, current_user: str = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get employee_id (telegram id) before update
+    cursor.execute("SELECT employee_id FROM employees WHERE id = ?", (employee_id,))
+    emp = cursor.fetchone()
+    
+    cursor.execute("UPDATE employees SET is_active = ? WHERE id = ?", (int(update.is_active), employee_id))
+    conn.commit()
+    conn.close()
+    
+    # Send telegram message if disabled
+    if not update.is_active and emp:
+        tg_id = emp['employee_id']
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": tg_id,
+            "text": "⛔ *Truy cập bị từ chối*\nBạn chưa được cấp quyền truy cập hệ thống hoặc quyền đã bị thu hồi. Nếu có thắc mắc vui lòng liên hệ kế toán.",
+            "parse_mode": "Markdown"
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                await client.post(url, json=payload)
+            except Exception as e:
+                print(f"Error sending disable notification to {tg_id}: {e}")
+                
+    return {"success": True, "message": "Cập nhật trạng thái thành công"}
 
 @app.get("/api/telegram-image/{file_id}")
 async def get_telegram_image(file_id: str):

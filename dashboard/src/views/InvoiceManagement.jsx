@@ -118,6 +118,14 @@ const InvoiceManagement = () => {
                 <option value="rejected">Bị từ chối</option>
               </select>
             </div>
+            <button 
+              onClick={fetchInvoices}
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center shadow-sm"
+              title="Làm mới dữ liệu"
+            >
+              <RotateCw className="w-4 h-4 mr-2" />
+              Làm mới
+            </button>
           </div>
         )}
       </div>

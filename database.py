@@ -66,6 +66,11 @@ def init_db():
         cursor.execute("ALTER TABLE invoices ADD COLUMN status TEXT DEFAULT 'pending'")
     except sqlite3.OperationalError:
         pass
+
+    try:
+        cursor.execute("ALTER TABLE employees ADD COLUMN is_active BOOLEAN DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass
     
     conn.commit()
     conn.close()

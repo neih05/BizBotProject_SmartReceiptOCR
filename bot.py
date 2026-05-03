@@ -50,14 +50,16 @@ async def check_user_verified(update: Update) -> bool:
     
     # Check against employees table using telegram_id (stored in employee_id)
     emp = get_employee_by_id(str(user_id))
-    if not emp:
-        await update.message.reply_text(
+    if not emp or not emp.get("is_active", 1):
+        msg_text = (
             f"⛔ *Truy cập bị từ chối*\n"
-            f"Bạn chưa được cấp quyền truy cập hệ thống.\n"
-            f"Vui lòng gửi mã ID này cho Kế toán để được thêm vào danh sách nhân viên:\n"
-            f"`{user_id}`",
-            parse_mode="Markdown"
+            f"Bạn chưa được cấp quyền truy cập hệ thống hoặc quyền đã bị thu hồi. "
+            f"Nếu có thắc mắc vui lòng liên hệ kế toán."
         )
+        if update.callback_query:
+            await update.callback_query.edit_message_text(msg_text, parse_mode="Markdown")
+        elif update.message:
+            await update.message.reply_text(msg_text, parse_mode="Markdown")
         return False
 
     user = get_user(user_id)
@@ -91,8 +93,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👋 Xin chào {name}!\n\n"
         "📸 Bạn có thể gửi ảnh hóa đơn cho tôi để đưa vào danh sách chờ duyệt.\n"
         "📋 Dùng /history để xem 5 hóa đơn gần nhất.\n"
-        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] để nhập tay.\n"
-        "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
+        "✏️ Dùng /expense [số tiền] [Tên_cửa_hàng] - [Danh_mục] để nhập tay.\n"
+        "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
         parse_mode="Markdown"
     )
 
@@ -176,6 +178,9 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     
+    if not await check_user_verified(update):
+        return ConversationHandler.END
+    
     data = query.data
     user_data = context.user_data.get('temp_invoice')
     user_id = update.effective_user.id
@@ -197,15 +202,25 @@ async def photo_confirm_callback(update: Update, context: ContextTypes.DEFAULT_T
         return ConversationHandler.END
         
     elif data == "edit_invoice":
+        # Pre-fill with actual OCR data for easy editing
+        amt = int(user_data.get("total_amount", 0))
+        store = user_data.get("store_name", "Tên cửa hàng")
+        cat = user_data.get("category", "Khác")
+        prefilled = f"/expense {amt} {store} - {cat}"
+        
         await query.edit_message_text(
-            f"{query.message.text}\n\nBạn hãy gõ lại thông tin theo cú pháp sau:\n"
-            "`/expense [Số tiền] [Tên cửa hàng]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
+            f"{query.message.text}\n\n"
+            "Cú pháp: `/expense [Số tiền] [Tên cửa hàng] - [Danh mục]`\n\n"
+            "✏️ Bạn có thể copy lệnh bên dưới, chỉnh sửa và gửi lại:\n"
+            f"`{prefilled}`",
             parse_mode="Markdown"
         )
         return WAIT_PHOTO_EDIT
 
 async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await check_user_verified(update):
+        return ConversationHandler.END
+
     text = update.message.text.strip()
     user_data = context.user_data.get('temp_invoice')
     user_id = update.effective_user.id
@@ -220,15 +235,25 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if len(args) < 1:
             await update.message.reply_text(
                 "❌ Cú pháp không hợp lệ. Vui lòng gõ lại theo định dạng:\n"
-                "`/expense [Số tiền] [Tên_cửa_hàng]`\n"
-                "Ví dụ: `/expense 50000 Cơm trưa văn phòng`",
+                "`/expense [Số tiền] [Tên_cửa_hàng] - [Danh mục]`\n"
+                "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`",
                 parse_mode="Markdown"
             )
             return WAIT_PHOTO_EDIT
             
         amount_str = args[0]
-        store_name = " ".join(args[1:]) if len(args) > 1 else user_data.get("store_name", "Không rõ")
-        category = user_data.get("category", "Không phân loại")
+        store_name_raw = " ".join(args[1:]) if len(args) > 1 else ""
+        if store_name_raw:
+            if " - " in store_name_raw:
+                parts = store_name_raw.rsplit(" - ", 1)
+                store_name = parts[0].strip()
+                category = parts[1].strip()
+            else:
+                store_name = store_name_raw
+                category = user_data.get("category", "Không phân loại")
+        else:
+            store_name = user_data.get("store_name", "Không rõ")
+            category = user_data.get("category", "Không phân loại")
     else:
         amount_str = text
         store_name = user_data.get("store_name", "Không rõ")
@@ -272,8 +297,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not raw_args:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n",
+            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n",
             parse_mode="Markdown"
         )
         return
@@ -281,8 +306,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = raw_args.split()
     if len(args) < 2:
         await update.message.reply_text(
-            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng]`\n"
-            "Ví dụ: `/expense 50000 Cơm trưa văn phòng`\n"
+            "Cú pháp: `/expense [Số tiền] [Tên_cửa_hàng] - [Danh_mục]`\n"
+            "Ví dụ: `/expense 50000 Cơm trưa văn phòng - Ăn uống`\n"
             "(Cần tối thiểu số tiền và tên cửa hàng)", 
             parse_mode="Markdown"
         )
@@ -295,7 +320,14 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Số tiền không hợp lệ.")
         return
 
-    store_name = " ".join(args[1:])
+    store_name_raw = " ".join(args[1:])
+    category = "Không phân loại"
+    store_name = store_name_raw
+    if " - " in store_name_raw:
+        parts = store_name_raw.rsplit(" - ", 1)
+        store_name = parts[0].strip()
+        category = parts[1].strip()
+
     today_str = datetime.now().strftime("%d/%m/%Y")
     
     is_dup = is_duplicate(store_name, today_str, amount)
@@ -306,7 +338,7 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "date": today_str,
         "items": [],
         "total_amount": amount,
-        "category": "Không phân loại",
+        "category": category,
         "is_suspicious_duplicate": is_dup
     }
 

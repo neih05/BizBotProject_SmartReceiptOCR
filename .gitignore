@@ -16,3 +16,5 @@ scratch/
 *.pyc
 *.pyo
 .DS_Store
+uploads/
+dashboard/build_error.txt
