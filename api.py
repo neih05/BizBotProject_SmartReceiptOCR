@@ -101,48 +101,70 @@ async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate):
             
     return {"success": True, "message": "Updated successfully"}
 
+class EmployeeCreate(BaseModel):
+    employee_id: str
+    real_name: str
+
 @app.get("/api/employees")
 def get_employees():
     conn = get_db()
     cursor = conn.cursor()
-    # Lấy thông tin user có hóa đơn
-    cursor.execute("""
-        SELECT u.telegram_id, u.full_name, u.role, u.is_verified,
-               COUNT(i.id) as invoice_count,
-               SUM(CASE WHEN i.status = 'approved' THEN i.total_amount ELSE 0 END) as total_value
-        FROM users u
-        LEFT JOIN invoices i ON u.telegram_id = i.user_id
-        GROUP BY u.telegram_id, u.full_name, u.role, u.is_verified
-    """)
-    users = cursor.fetchall()
     
-    # Lấy thông tin employees table
+    # Lấy tất cả nhân viên từ bảng employees (nguồn chính)
     cursor.execute("SELECT * FROM employees")
     employees = cursor.fetchall()
     
+    # Lấy thống kê hóa đơn theo user
+    cursor.execute("""
+        SELECT user_id,
+               COUNT(id) as invoice_count,
+               SUM(CASE WHEN status = 'approved' THEN total_amount ELSE 0 END) as total_value
+        FROM invoices
+        GROUP BY user_id
+    """)
+    stats_rows = cursor.fetchall()
+    stats_map = {str(s['user_id']): dict(s) for s in stats_rows}
+    
     conn.close()
     
-    # Merge them for display
-    emp_map = {str(e['employee_id']): dict(e) for e in employees}
-    
     result = []
-    for u in users:
-        u_dict = dict(u)
-        tid = str(u_dict['telegram_id'])
-        emp_info = emp_map.get(tid, {})
+    for e in employees:
+        e_dict = dict(e)
+        tid = str(e_dict['employee_id'])
+        stats = stats_map.get(tid, {})
         
         result.append({
-            "id": u_dict['telegram_id'],
-            "telegramId": u_dict['telegram_id'],
-            "name": u_dict['full_name'],
-            "nickname": emp_info.get('nickname', 'Không rõ'),
-            "department": "Kế toán" if u_dict['role'] == 'admin' else "Hành chính",
-            "invoicesSent": u_dict['invoice_count'],
-            "totalValue": u_dict['total_value'] or 0,
-            "status": "approved" if u_dict['is_verified'] else "pending"
+            "id": e_dict['id'],
+            "telegramId": e_dict['employee_id'],
+            "name": e_dict['real_name'],
+            "department": "Hành chính",
+            "invoicesSent": stats.get('invoice_count', 0),
+            "totalValue": stats.get('total_value', 0) or 0,
+            "status": "approved"
         })
         
     return result
+
+@app.post("/api/employees")
+def add_employee(emp: EmployeeCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Kiểm tra trùng
+    cursor.execute("SELECT id FROM employees WHERE employee_id = ?", (emp.employee_id,))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Telegram ID này đã tồn tại trong hệ thống")
+    
+    cursor.execute(
+        "INSERT INTO employees (employee_id, real_name) VALUES (?, ?)",
+        (emp.employee_id, emp.real_name)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    
+    return {"success": True, "id": new_id, "message": "Thêm nhân viên thành công"}
 
 @app.get("/api/telegram-image/{file_id}")
 async def get_telegram_image(file_id: str):

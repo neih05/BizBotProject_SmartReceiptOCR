@@ -35,19 +35,18 @@ def init_db():
         CREATE TABLE IF NOT EXISTS employees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id TEXT UNIQUE NOT NULL,
-            real_name TEXT NOT NULL,
-            nickname TEXT NOT NULL
+            real_name TEXT NOT NULL
         )
     """)
     
-    # Seed data
+    # Khai báo danh sách nhân viên thật của bạn ở đây để khi sang máy khác vẫn tự cập nhật
     employees_data = [
-        ("6200223111", "Nguyễn Minh Nguyệt", "Nguyệt"),
-        ("8100040764", "Đào Thanh Hiền", "Hoa Hồng nhỏ"),
-        ("8747576383", "Đinh Thị Hải", "Hải")
+        ("6200223111", "Nguyễn Minh Nguyệt"),
+        ("8100040764", "Đào Thanh Hiền"),
+        ("8747576383", "Đinh Thị Hải")
     ]
-    for emp_id, name, nick in employees_data:
-        cursor.execute("INSERT OR IGNORE INTO employees (employee_id, real_name, nickname) VALUES (?, ?, ?)", (emp_id, name, nick))
+    for emp_id, name in employees_data:
+        cursor.execute("INSERT OR IGNORE INTO employees (employee_id, real_name) VALUES (?, ?)", (emp_id, name))
         
     try:
         cursor.execute("ALTER TABLE invoices ADD COLUMN status TEXT DEFAULT 'pending'")
@@ -131,11 +130,11 @@ def get_user(telegram_id: int) -> dict:
     conn.close()
     return dict(row) if row else None
 
-def get_employee_by_nickname(nickname: str) -> dict:
+def get_employee_by_name(name: str) -> dict:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM employees WHERE nickname = ? OR real_name = ?", (nickname, nickname))
+    cursor.execute("SELECT * FROM employees WHERE real_name = ?", (name,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None

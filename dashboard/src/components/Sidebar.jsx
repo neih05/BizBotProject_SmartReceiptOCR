@@ -11,7 +11,7 @@ import {
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const navItems = [
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
-    { id: 'invoices', label: 'Hóa đơn', icon: Receipt, badge: 12 },
+    { id: 'invoices', label: 'Hóa đơn', icon: Receipt },
     { id: 'employees', label: 'Nhân sự', icon: Users },
     { id: 'master', label: 'Danh mục', icon: Database },
     { id: 'export', label: 'Xuất báo cáo', icon: FileDown },

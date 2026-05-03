@@ -19,7 +19,7 @@ from database import (
     init_db, save_invoice, get_history, count_user_invoices, is_duplicate,
     get_user, save_user, update_user_status, get_pending_invoices,
     update_invoice_status, get_approved_invoices_for_report, get_users_with_stats,
-    get_all_invoices_for_export, get_daily_report, get_employee_by_nickname, get_employee_by_id
+    get_all_invoices_for_export, get_daily_report, get_employee_by_name, get_employee_by_id
 )
 from gemini_handler import setup_gemini, extract_invoice
 from formatter import format_invoice, format_history
