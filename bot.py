@@ -14,7 +14,7 @@ from telegram.ext import (
 )
 
 from database import (
-    init_db, save_invoice, get_history, is_duplicate,
+    init_db, save_invoice, get_history, is_duplicate, find_duplicate_ids,
     get_user, save_user, get_employee_by_id
 )
 from gemini_handler import setup_gemini, extract_invoice
@@ -126,9 +126,12 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amt = data.get("total_amount", 0)
         
         is_dup = False
+        dup_ids = []
         if store and date and amt:
-            is_dup = is_duplicate(store, date, amt)
+            dup_ids = find_duplicate_ids(store, date, amt)
+            is_dup = len(dup_ids) > 0
             data['is_suspicious_duplicate'] = is_dup
+            data['duplicate_of_ids'] = dup_ids
 
         result_text = format_invoice(data)
         category_str = data.get("category") or "Khác"

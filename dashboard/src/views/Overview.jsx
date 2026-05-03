@@ -4,9 +4,11 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { Wallet, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { departments, weeklyChartData, categoryPieData, formatCurrency } from '../mockData';
+import { departments, formatCurrency } from '../mockData';
 
 const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#6366f1', '#8b5cf6'];
+const weeklyChartData = [];
+const categoryPieData = [];
 
 const Overview = () => {
   const [chartTab, setChartTab] = useState('week');
