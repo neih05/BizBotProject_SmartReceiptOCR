@@ -9,6 +9,7 @@ const Employees = () => {
   const [formData, setFormData] = useState({ employee_id: '', real_name: '' });
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const fetchEmployees = () => {
     apiClient('/employees')
@@ -20,6 +21,23 @@ const Employees = () => {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  const executeAction = async () => {
+    if (!confirmAction) return;
+    
+    const emp = confirmAction.payload;
+    try {
+      const res = await apiClient(`/employees/${emp.id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ is_active: !emp.isActive }),
+      });
+      if (res.ok) fetchEmployees();
+      else alert('Có lỗi xảy ra khi cập nhật trạng thái.');
+    } catch (err) {
+      alert('Không thể kết nối đến server.');
+    }
+    setConfirmAction(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,17 +130,27 @@ const Employees = () => {
                   <td className="px-6 py-4 text-center font-medium text-navy-900">{emp.invoicesSent}</td>
                   <td className="px-6 py-4 text-right font-medium text-navy-900">{formatCurrency(emp.totalValue)}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center w-max mx-auto">
-                      <ShieldCheck className="w-3 h-3 mr-1" /> Đã cấp quyền
-                    </span>
+                    {emp.isActive ? (
+                      <span className="px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center w-max mx-auto">
+                        <ShieldCheck className="w-3 h-3 mr-1" /> Đã cấp quyền
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-500 rounded-full flex items-center justify-center w-max mx-auto">
+                        <ShieldAlert className="w-3 h-3 mr-1" /> Đã thu hồi
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex space-x-2 justify-center">
                       <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Lịch sử hóa đơn">
                         <History className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Thu hồi quyền">
-                        <ShieldAlert className="w-4 h-4" />
+                      <button 
+                        onClick={() => setConfirmAction({ type: 'toggle', payload: emp })}
+                        className={`p-1.5 rounded ${emp.isActive ? 'text-slate-400 hover:text-orange-600 hover:bg-orange-50' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'}`} 
+                        title={emp.isActive ? "Thu hồi quyền" : "Cấp lại quyền"}
+                      >
+                        {emp.isActive ? <ShieldAlert className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                       </button>
                     </div>
                   </td>
@@ -202,6 +230,45 @@ const Employees = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="text-lg font-bold text-navy-900">Xác nhận thao tác</h3>
+              <button onClick={() => setConfirmAction(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-slate-600">
+                {confirmAction.payload.isActive 
+                  ? 'Bạn có chắc chắn muốn thu hồi quyền truy cập của nhân viên này? Nhân viên sẽ không thể sử dụng bot cho đến khi được cấp lại quyền.'
+                  : 'Bạn có chắc chắn muốn cấp lại quyền truy cập cho nhân viên này?'}
+              </p>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setConfirmAction(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  onClick={executeAction}
+                  className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors ${
+                    confirmAction.payload.isActive
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
