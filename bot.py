@@ -259,6 +259,12 @@ async def photo_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data["store_name"] = store_name
     user_data["category"] = category
     
+    date_str = user_data.get("date", datetime.now().strftime("%d/%m/%Y"))
+    dup_ids = find_duplicate_ids(store_name, date_str, amount)
+    is_dup = len(dup_ids) > 0
+    user_data["is_suspicious_duplicate"] = is_dup
+    user_data["duplicate_of_ids"] = dup_ids
+    
     invoice_id = save_invoice(user_id, user_data, status='pending')
     
     await update.message.reply_text(
@@ -314,7 +320,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     today_str = datetime.now().strftime("%d/%m/%Y")
     
-    is_dup = is_duplicate(store_name, today_str, amount)
+    dup_ids = find_duplicate_ids(store_name, today_str, amount)
+    is_dup = len(dup_ids) > 0
 
     data = {
         "is_invoice": True,
@@ -323,7 +330,8 @@ async def cmd_expense(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "items": [],
         "total_amount": amount,
         "category": category,
-        "is_suspicious_duplicate": is_dup
+        "is_suspicious_duplicate": is_dup,
+        "duplicate_of_ids": dup_ids
     }
 
     # Queue instantly
