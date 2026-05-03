@@ -350,7 +350,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🚀 /start: Khởi động bot & tự động đăng ký hệ thống\n"
         "❓ /help: Xem hướng dẫn sử dụng chi tiết\n"
         "📜 /history: Xem 5 hóa đơn gần nhất của bạn\n"
-        "🖊️ /expense [số tiền] [Tên]: Nhập chi phí thủ công (VD: `/expense 50000 An trua`)\n"
+        "🖊️ /expense [Số tiền] [Tên cửa hàng]: Nhập chi phí thủ công (VD: `/expense 50000 Cơm trưa`)\n"
         "📸 *Gửi ảnh:* AI sẽ tự động phân tích, kiểm tra trùng lặp & lưu hóa đơn."
     )
     await update.message.reply_text(text, parse_mode="Markdown")
