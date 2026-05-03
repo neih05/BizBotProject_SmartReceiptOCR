@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, FileImage, Search, Filter, Check, X, RotateCw, ZoomIn, ZoomOut, AlertTriangle } from 'lucide-react';
-import { formatCurrency, accounts, departments } from '../mockData';
+import { formatCurrency, accounts, departments, expenseTags } from '../mockData';
 
 const InvoiceManagement = () => {
   const [invoices, setInvoices] = useState([]);
@@ -134,6 +134,7 @@ const InvoiceManagement = () => {
                   <th className="px-4 py-3 font-semibold">Ngày nhận</th>
                   <th className="px-4 py-3 font-semibold">Người gửi</th>
                   <th className="px-4 py-3 font-semibold">Nhà cung cấp</th>
+                  <th className="px-4 py-3 font-semibold">Danh mục</th>
                   <th className="px-4 py-3 font-semibold text-right">Số tiền tạm tính</th>
                   <th className="px-4 py-3 font-semibold text-center">Trạng thái</th>
                   <th className="px-4 py-3 font-semibold text-center">Thao tác</th>
@@ -163,6 +164,11 @@ const InvoiceManagement = () => {
                     <td className="px-4 py-3 text-slate-600">{inv.date}</td>
                     <td className="px-4 py-3 font-medium text-navy-900">{inv.sender_name || inv.user_id}</td>
                     <td className="px-4 py-3 text-slate-700">{inv.store_name}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-medium">
+                        {inv.ocr?.category || 'Khác'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-right font-medium text-navy-900">{formatCurrency(inv.total_amount)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -309,11 +315,10 @@ const InvoiceManagement = () => {
                       <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1">Loại chi phí</label>
                         <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} disabled={selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected'} className={`w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 ${(selectedInvoice.status === 'approved' || selectedInvoice.status === 'rejected') ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}>
-                          <option>Tiếp khách</option>
-                          <option>Văn phòng phẩm</option>
-                          <option>Di chuyển</option>
-                          <option>Công tác phí</option>
-                          <option>Khác</option>
+                          <option value="">-- Chọn loại chi phí --</option>
+                          {expenseTags.map(tag => (
+                            <option key={tag.id} value={tag.name}>{tag.name}</option>
+                          ))}
                         </select>
                       </div>
                       <div>

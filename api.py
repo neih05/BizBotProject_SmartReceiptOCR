@@ -72,12 +72,20 @@ async def update_invoice_status(invoice_id: int, update_data: InvoiceUpdate):
         
     invoice_dict = dict(invoice)
     
-    # Update status and amount
+    # Update raw_json with accounting info
+    current_raw = json.loads(invoice_dict['raw_json'] or '{}')
+    current_raw['category'] = update_data.category
+    current_raw['debitAccount'] = update_data.debitAccount
+    current_raw['creditAccount'] = update_data.creditAccount
+    current_raw['department'] = update_data.department
+    current_raw['notes'] = update_data.notes
+    
+    # Update status, amount and raw_json
     cursor.execute("""
         UPDATE invoices 
-        SET status = ?, total_amount = ? 
+        SET status = ?, total_amount = ?, raw_json = ? 
         WHERE id = ?
-    """, (update_data.status, update_data.totalAmount, invoice_id))
+    """, (update_data.status, update_data.totalAmount, json.dumps(current_raw), invoice_id))
     conn.commit()
     conn.close()
     
