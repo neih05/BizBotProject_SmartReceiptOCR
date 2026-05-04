@@ -108,7 +108,7 @@ Sử dụng tài khoản Kế toán / Admin mặc định để đăng nhập:
 ## 🗃️ Cấu trúc hệ thống & Database
 
 Dữ liệu được lưu trong file `invoices.db` (SQLite) và tự động tạo khi chạy lần đầu. 
-> **Mẹo nhỏ:** Để **reset toàn bộ dữ liệu** (xóa hết hóa đơn, người dùng để demo lại từ đầu), bạn chỉ cần tắt bot, xóa file `invoices.db` rồi chạy lại bot.
+> **Mẹo:** Để **reset toàn bộ dữ liệu** (xóa hết hóa đơn, người dùng để demo lại từ đầu), bạn chỉ cần tắt bot, xóa file `invoices.db` rồi chạy lại bot.
 
 Hệ thống kết nối chặt chẽ giữa 3 thành phần:
 1. **Bot Telegram**: Người dùng gửi ảnh, Bot dùng AI phân tích, cảnh báo trùng lặp (nếu có), lưu vào DB và báo cho Kế toán (trên Dashboard).
@@ -121,4 +121,4 @@ Hệ thống kết nối chặt chẽ giữa 3 thành phần:
 
 - File `.env` chứa thông tin nhạy cảm — **KHÔNG** đưa lên GitHub. Thêm vào `.gitignore`.
 - Gemini free tier có giới hạn request nhất định nhưng đủ dùng cho quy mô nhỏ & demo.
-- Ảnh hóa đơn người dùng gửi lên cần rõ nét, đủ sáng để AI đọc chính xác nhất.
+
