@@ -4,6 +4,15 @@ Hệ thống bao gồm một Bot Telegram tự động đọc ảnh hóa đơn, 
 
 ---
 
+## ✨ Tính năng nổi bật
+
+1. **Bot Telegram Thông Minh**: Người dùng gửi ảnh hóa đơn, bot tự động dùng AI (Gemini Vision) để đọc và trích xuất thông tin (Số tiền, ngày tháng, tên cửa hàng).
+2. **Kiểm tra trùng lặp (Duplicate Detection)**: Tự động cảnh báo và ngăn chặn gửi trùng hóa đơn dựa trên số tiền, ngày và tên cửa hàng.
+3. **Web Dashboard Quản Trị**: Giao diện trực quan dành cho Kế toán để theo dõi, duyệt/từ chối hóa đơn, và xem báo cáo thống kê.
+4. **Quy trình duyệt (Approval Workflow)**: Hóa đơn được giữ ở trạng thái "Chờ duyệt", kế toán thao tác trên web và bot sẽ tự động nhắn tin phản hồi kết quả cho người dùng.
+
+---
+
 ## 📁 Cấu trúc project
 
 ```
@@ -21,11 +30,18 @@ bizbot/
 
 ---
 
+## 💻 Yêu cầu hệ thống (Prerequisites)
+- **Python 3.9+**
+- **Node.js 18+** & **npm** (để chạy Web Dashboard)
+- Tài khoản Telegram (để tạo bot) và [Google AI Studio](https://aistudio.google.com) (để lấy Gemini API Key)
+
+---
+
 ## ⚙️ Hướng dẫn cài đặt & chạy
 
 ### Bước 1 — Lấy API Keys
-1. **Telegram Bot Token**: Vào Telegram, tìm **@BotFather**, tạo `/newbot` và lấy token.
-2. **Gemini API Key**: Vào [Google AI Studio](https://aistudio.google.com), tạo API Key.
+1. **Telegram Bot Token**: Vào Telegram, tìm **@BotFather**, gõ `/newbot` và làm theo hướng dẫn để lấy token.
+2. **Gemini API Key**: Vào Google AI Studio, tạo một API Key miễn phí.
 
 ### Bước 2 — Cấu hình biến môi trường
 Tạo file `.env` ở thư mục gốc (copy từ `.env.example`):
@@ -36,7 +52,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ### Bước 3 — Cài đặt và chạy hệ thống
 
-Hệ thống gồm 3 thành phần chạy song song:
+Hệ thống gồm 3 thành phần chạy song song. Vui lòng mở 3 cửa sổ Terminal (Command Prompt) riêng biệt:
 
 #### 1. Chạy Telegram Bot (Xử lý hóa đơn)
 ```bash
@@ -67,6 +83,16 @@ npm run dev
 
 ---
 
+## 🔐 Thông tin đăng nhập Web Dashboard
+
+Sau khi Backend và Web Dashboard đã chạy thành công, hãy mở trình duyệt và truy cập vào địa chỉ: **http://localhost:5173**
+
+Sử dụng tài khoản Kế toán / Admin mặc định để đăng nhập:
+- **Tên đăng nhập:** `admin`
+- **Mật khẩu:** `admin`
+
+---
+
 ## 🤖 Các lệnh Bot Telegram
 
 | Lệnh | Mô tả |
@@ -81,9 +107,12 @@ npm run dev
 
 ## 🗃️ Cấu trúc hệ thống & Database
 
-Dữ liệu được lưu trong file `invoices.db` (SQLite) và tự động tạo khi chạy lần đầu. Hệ thống kết nối chặt chẽ giữa:
+Dữ liệu được lưu trong file `invoices.db` (SQLite) và tự động tạo khi chạy lần đầu. 
+> **Mẹo nhỏ:** Để **reset toàn bộ dữ liệu** (xóa hết hóa đơn, người dùng để demo lại từ đầu), bạn chỉ cần tắt bot, xóa file `invoices.db` rồi chạy lại bot.
+
+Hệ thống kết nối chặt chẽ giữa 3 thành phần:
 1. **Bot Telegram**: Người dùng gửi ảnh, Bot dùng AI phân tích, cảnh báo trùng lặp (nếu có), lưu vào DB và báo cho Kế toán (trên Dashboard).
-2. **Web Dashboard**: Giao diện UI cho kế toán xem báo cáo, quản lý nhân viên và duyệt/từ chối hóa đơn.
+2. **Web Dashboard**: Giao diện UI cho kế toán xem báo cáo, quản lý nhân viên, và duyệt/từ chối hóa đơn.
 3. **Backend API**: Khi kế toán thao tác trên web, API sẽ lưu trạng thái vào DB và tự động gửi tin nhắn Telegram báo kết quả lại cho người dùng thông qua Bot.
 
 ---
