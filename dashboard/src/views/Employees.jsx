@@ -10,6 +10,7 @@ const Employees = () => {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchEmployees = () => {
     apiClient('/employees')
@@ -77,12 +78,22 @@ const Employees = () => {
     setIsSubmitting(false);
   };
 
+  const filteredEmployees = employeesData.filter(emp => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      (emp.name && emp.name.toLowerCase().includes(query)) ||
+      (emp.telegramId && emp.telegramId.toString().includes(query)) ||
+      (emp.department && emp.department.toLowerCase().includes(query))
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-navy-900">Quản lý Nhân sự</h2>
-          <p className="text-sm text-slate-500 mt-1">Quản lý quyền truy cập và thống kê hóa đơn của nhân viên (Dữ liệu Live)</p>
+          <p className="text-sm text-slate-500 mt-1">Quản lý quyền truy cập và thống kê hóa đơn của nhân viên</p>
         </div>
         <button
           onClick={() => { setShowModal(true); setFormError(''); }}
@@ -96,7 +107,13 @@ const Employees = () => {
         <div className="p-4 border-b border-slate-100 flex justify-between items-center">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-            <input type="text" placeholder="Tìm kiếm nhân viên..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80" />
+            <input 
+              type="text" 
+              placeholder="Tìm kiếm theo Tên, ID, Phòng ban..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-80" 
+            />
           </div>
         </div>
 
@@ -113,7 +130,7 @@ const Employees = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {employeesData.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -153,10 +170,12 @@ const Employees = () => {
                   </td>
                 </tr>
               ))}
-              {employeesData.length === 0 && (
+              {filteredEmployees.length === 0 && (
                 <tr>
                   <td colSpan="6" className="px-4 py-8 text-center text-slate-500">
-                    Chưa có nhân sự nào trong hệ thống.
+                    {employeesData.length === 0 
+                      ? 'Chưa có nhân sự nào trong hệ thống.' 
+                      : 'Không tìm thấy nhân viên phù hợp với từ khóa tìm kiếm.'}
                   </td>
                 </tr>
               )}

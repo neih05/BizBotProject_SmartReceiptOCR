@@ -102,7 +102,7 @@ const InvoiceManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-navy-900">Quản lý hóa đơn</h2>
-          <p className="text-sm text-slate-500 mt-1">Đối soát OCR và hạch toán tự động (Dữ liệu Live)</p>
+          <p className="text-sm text-slate-500 mt-1">Đối soát OCR và hạch toán tự động</p>
         </div>
         {!selectedInvoice && (
           <div className="flex space-x-3">
@@ -110,10 +110,10 @@ const InvoiceManagement = () => {
               <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Tìm kiếm #Mã HĐ, tên..." 
+                placeholder="Tìm #Mã HĐ, người gửi, nhà cung cấp..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" 
+                className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-72" 
               />
             </div>
             <div className="relative">
@@ -165,12 +165,14 @@ const InvoiceManagement = () => {
                     .filter(inv => filterStatus === 'all' || inv.status === filterStatus)
                     .filter(inv => {
                       if (!searchQuery) return true;
-                      const query = searchQuery.toLowerCase();
+                      const query = searchQuery.toLowerCase().trim();
+                      // Loại bỏ dấu # nếu người dùng nhập (VD: #5) để tìm đúng ID
+                      const cleanQuery = query.startsWith('#') ? query.substring(1) : query;
+                      
                       return (
-                        inv.id.toString().includes(query) ||
+                        inv.id.toString().includes(cleanQuery) ||
                         (inv.sender_name && inv.sender_name.toLowerCase().includes(query)) ||
-                        (inv.store_name && inv.store_name.toLowerCase().includes(query)) ||
-                        (inv.user_id && inv.user_id.toString().includes(query))
+                        (inv.store_name && inv.store_name.toLowerCase().includes(query))
                       );
                     });
                   

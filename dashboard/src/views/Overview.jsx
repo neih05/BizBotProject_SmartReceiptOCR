@@ -21,6 +21,7 @@ const Overview = () => {
 
   const displayWeeklyData = charts[chartTab] || [];
   const displayCategoryData = charts.categories || [];
+  const totalCategoryValue = displayCategoryData.reduce((sum, item) => sum + (item.value || 0), 0);
 
   useEffect(() => {
     apiClient('/stats')
@@ -164,7 +165,12 @@ const Overview = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip />
+                <RechartsTooltip 
+                  formatter={(value, name) => {
+                    const percent = totalCategoryValue > 0 ? ((value / totalCategoryValue) * 100).toFixed(1) : 0;
+                    return [`${formatCurrency(value)} (${percent}%)`, name];
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
