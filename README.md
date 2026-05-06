@@ -127,7 +127,7 @@ Sử dụng tài khoản mặc định:
 
 ## 🤖 Thông tin Bot Telegram
 
-Username Bot: @@bizbot_receipt_bot
+Username Bot: @bizbot_receipt_bot
 
 | Lệnh | Mô tả |
 |------|-------|
