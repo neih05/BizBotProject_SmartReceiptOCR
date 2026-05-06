@@ -16,16 +16,19 @@ Hệ thống bao gồm một Bot Telegram tự động đọc ảnh hóa đơn, 
 ## 📁 Cấu trúc project
 
 ```
-BizBot_NopBai/
-├── bot.py              # File chính, chạy bot Telegram
-├── gemini_handler.py   # Gọi Gemini Vision API để phân tích ảnh hóa đơn
-├── database.py         # Quản lý SQLite — lưu & truy vấn hóa đơn, người dùng
-├── formatter.py        # Format kết quả đẹp để reply trên Telegram
-├── api.py              # FastAPI Backend cung cấp API cho Dashboard
-├── dashboard/          # React Vite Web Dashboard cho Kế toán
-├── requirements.txt    # Thư viện Python cần cài
-├── .env                # Token & API key
-└── .env.example        # Mẫu file .env
+G7_FinalProject_BizBotSmartReceiptOCR/
+├── BizBot_Code/        # Thư mục chứa mã nguồn
+│   ├── bot.py              # File chính, chạy bot Telegram
+│   ├── gemini_handler.py   # Gọi Gemini Vision API để phân tích ảnh hóa đơn
+│   ├── database.py         # Quản lý SQLite — lưu & truy vấn hóa đơn, người dùng
+│   ├── formatter.py        # Format kết quả đẹp để reply trên Telegram
+│   ├── api.py              # FastAPI Backend cung cấp API cho Dashboard
+│   ├── dashboard/          # React Vite Web Dashboard cho Kế toán
+│   ├── requirements.txt    # Thư viện Python cần cài
+│   ├── .env                # Token & API key
+│   └── .env.example        # Mẫu file .env
+├── Report.pdf          # Báo cáo dự án
+└── Slide Bizbot.pdf    # Slide trình bày BizBot
 ```
 
 ---
@@ -71,15 +74,16 @@ python -m venv venv
 
 # 2. Kích hoạt môi trường (Mac/Linux)
 source venv/bin/activate
+```
 
 ### Bước 4 — Cài đặt thư viện Python
 
 ```bash
 pip install --upgrade pip
 pip install --only-binary :all: -r requirements.txt
+```
 
-
-### Bước 4 — Chạy hệ thống (cần 3 cửa sổ Terminal)
+### Bước 5 — Chạy hệ thống (cần 3 cửa sổ Terminal)
 
 Hệ thống gồm **3 thành phần** chạy song song. Mở **3 cửa sổ Terminal** riêng biệt và chạy từng lệnh:
 
