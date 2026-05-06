@@ -77,7 +77,6 @@ source venv/bin/activate
 ```bash
 pip install --upgrade pip
 pip install --only-binary :all: -r requirements.txt
-pip install -r requirements.txt
 
 
 ### Bước 4 — Chạy hệ thống (cần 3 cửa sổ Terminal)
